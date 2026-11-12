@@ -83,10 +83,13 @@ export function beginLaneCheckpoint(S, ck) {
 // her station over the Xi (or, after the drop, further off where she watches)
 function station(S, out) {
   const p = S.player, lane = S.story.lane;
-  const away = lane.stage === 'falling' || lane.stage === 'aboard';
+  const away = lane.stage === 'falling' || lane.stage === 'aboard' || lane.stage === 'lost';
   heading(p, _f);
-  out.copy(p.position).addScaledVector(_f, away ? C.awayAhead : C.stationAhead);
-  out.y = Math.max(p.position.y + (away ? C.awayUp : C.stationUp), C.minAlt);
+  const y = Math.max(p.position.y + (away ? C.awayUp : C.stationUp), C.minAlt);
+  // a low Xi: she stays at minAlt but moves further ahead, so she (and his drop) stays within maxElev of the nose
+  const ahead = Math.min(C.maxAhead, Math.max(away ? C.awayAhead : C.stationAhead, (y - p.position.y) / Math.tan(C.maxElev)));
+  out.copy(p.position).addScaledVector(_f, ahead);
+  out.y = y;
   return out;
 }
 
@@ -123,7 +126,8 @@ export function updateLane(S, dt) {
   const d = e && e.alive ? fly(S, e, dt) : Infinity;
   switch (lane.stage) {
     case 'arrive':
-      if (d < C.arriveRange) { lane.stage = 'talk'; lane.t = 0; say(S, 0); }
+      // close enough, or close to the Xi after a while (a pilot who keeps turning swings her station away)
+      if (d < C.arriveRange || (lane.t > C.arriveFallback && e && e.position.distanceTo(p.position) < 1500)) { lane.stage = 'talk'; lane.t = 0; say(S, 0); }
       m.objective = 'HOLD YOUR FIRE — UNKNOWN CONTACT';
       break;
     case 'talk':
@@ -153,8 +157,18 @@ export function updateLane(S, dt) {
     case 'aboard':
       if (lane.t >= C.duelDelay) duel(S);
       break;
+    case 'lost':
+      stepRescue(S, dt, RESCUE_LINES);                  // he keeps falling (the result screen fades in over the world)
+      break;
     default: break;
   }
+}
+
+// after the beat has failed (phase 'failed'): she and Gawman keep moving under the result fade (sim/index.js)
+export function updateLaneAfter(S, dt) {
+  const lane = S.story.lane;
+  if (!lane || lane.stage !== 'lost' || !S.sim.gm) return;
+  updateLane(S, dt);
 }
 
 // Gawman is safe: the Penelope turns on the Xi; from here it is the ordinary third wave (mission.js)

@@ -100,12 +100,14 @@ export function createChase({ state, world, entities, monitor, rig }) {
     if (rs) {
       const gw = ents.find((e) => e.id === rs.gawmanId);
       if (gw && isVec(gw.position) && rs.phase !== 'aboard') marker(gw.position, `GAWMAN  ${Math.round(num(rs.distance, 0))} M`, ORG);
-      const inE = !!rs.inEnvelope, c = inE ? GRN : WHITE;
-      T('RESCUE', 36, 56, c, 0.95, 22, 'left', 500);
+      const inE = !!rs.inEnvelope && rs.phase === 'falling', c = inE ? GRN : WHITE;
+      T(rs.phase === 'aboard' ? 'RESCUE — GAWMAN ABOARD' : 'RESCUE', 36, 56, rs.phase === 'aboard' ? GRN : c, 0.95, 22, 'left', 500);
+      if (rs.phase === 'falling' || rs.phase === 'approach') {
       T(`DIST ${Math.round(num(rs.distance, 0))} M   CLOSING ${Math.round(num(rs.closing, 0))}`, 36, 82, c, 0.9, 18);
       if (rs.relVel) T(`REL  F ${(-rs.relVel.z).toFixed(1)}  U ${rs.relVel.y.toFixed(1)}  R ${rs.relVel.x.toFixed(1)}`, 36, 106, inE ? GRN : AMB, 0.95, 18);
       if (isFinite(num(rs.timeToSea, Infinity))) T(`SEA ${rs.timeToSea.toFixed(1)} S`, 36, 130, rs.timeToSea < 6 ? RED : AMB, 0.95, 18);
       if (rs.sync && rs.sync !== 'off') T(rs.sync === 'locked' ? 'SPEED SYNC  LOCKED' : rs.sync === 'hover' ? 'SPEED SYNC  DROPPING TO HOVER' : `SPEED SYNC  ${Math.round(num(rs.syncW, 0) * 100)}%`, 36, 154, rs.sync === 'locked' ? GRN : AMB, 0.95, 18);
+      }
     }
     T('CHASE VIEW  [V] COCKPIT', W - 36, 44, WHITE, 0.55, 16, 'right');
     g.globalAlpha = 1;

@@ -364,6 +364,7 @@ export const GAWMAN = {
   // relative to him and a full stick worth at most max(syncMinRel, syncGain x gap) m/s - so holding the stick toward
   // him slows the approach down by itself (300 m: 180 m/s, 30 m: 18, at the catch point 5) and he is never rammed.
   syncRange: 1500, syncEngage: 0.8, syncRelease: 0.3, syncGain: 0.6, syncMinRel: 5,
+  syncHullStop: 8,          // m: with the hatch not fully open, no thrust toward him inside this gap to the hull
   hintCooldown: 2.5,
 };
 
@@ -382,6 +383,9 @@ export const LANE = {
   slowSpeed: 90,            // m/s: she lets him go once the Xi is this slow ...
   dropWait: 16,             // s: ... or this long after asking
   awayAhead: 650, awayUp: 450,   // after the drop she backs off to here and watches
+  maxElev: 0.61,            // rad (35 deg): a low Xi - she moves further ahead so she stays this far above the nose at most
+  maxAhead: 1300,           // m: ... but never further than this (his drop stays inside GAWMAN.syncRange)
+  arriveFallback: 25,       // s: the talk starts anyway once she is within 1.5 km of the Xi after this long
   duelDelay: 3.5,           // s from the hatch sealing to her attack
 };
 

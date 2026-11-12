@@ -223,3 +223,101 @@ test('sync: a pilot using only the stick and the hatch key makes the catch from 
   assert.ok(g.seen.includes('gawmanCaught'));
   assert.equal(s.phase, 'flight');
 });
+
+// ---- review fixes (2026-11-13) ----------------------------------------------------------------------------------------
+test('sync: three keys at once toward him (beside and above the cockpit) still never ram him with the hatch open', () => {
+  for (const sx of [-1, 1]) {
+    const g = game('story1p');
+    const s = g.state;
+    const r = toFalling(g);
+    g.press('hatch');
+    g.step(Math.ceil((HATCH_UNLOCK_TIME + HATCH_OPEN_TIME + 0.2) / DT));
+    const man = s.entities.find((e) => e.type === 'gawman' && e.alive);
+    // put him right / left, above and BEHIND the catch point, 40 m out, speeds matched
+    const q = s.player.quaternion;
+    const off = new THREE.Vector3(sx * 25, 25, 20).applyQuaternion(q);
+    s.player.position.copy(man.position).sub(off);
+    s.player.velocity.copy(man.velocity);
+    const inv = new THREE.Quaternion(), rel = new THREE.Vector3();
+    const keys = (st) => {
+      const m2 = st.entities.find((e) => e.type === 'gawman' && e.alive);
+      if (!m2 || r.phase !== 'falling') { st.input.moveX = st.input.moveY = st.input.moveZ = 0; return; }
+      inv.copy(st.player.quaternion).invert();
+      rel.copy(m2.position).sub(r.catchPoint).applyQuaternion(inv);
+      st.input.moveX = Math.sign(rel.x) * (Math.abs(rel.x) > 1 ? 1 : 0);
+      st.input.moveY = Math.sign(rel.y) * (Math.abs(rel.y) > 1 ? 1 : 0);
+      st.input.moveZ = -Math.sign(rel.z) * (Math.abs(rel.z) > 1 ? 1 : 0);
+    };
+    g.until(() => r.phase !== 'falling', 60 * 30, keys);
+    assert.notEqual(s.mission.result && s.mission.result.reason, 'hull', `side ${sx}: digital keys never strike the hull`);
+  }
+});
+
+test('sync: with the hatch still shut, pushing at him stops short of the hull; flight form is refused while engaged', () => {
+  const g = game('story1p');
+  const s = g.state;
+  const r = toFalling(g);
+  assert.ok(g.until(() => r.sync === 'locked', 60 * 3));
+  const man = s.entities.find((e) => e.type === 'gawman' && e.alive);
+  s.player.position.copy(man.position).add(new THREE.Vector3(0, 0, 60 + GAWMAN.catchOffset));
+  s.player.velocity.copy(man.velocity);
+  s.input.moveZ = 1;
+  g.step(60 * 6);
+  s.input.moveZ = 0;
+  assert.equal(r.phase, 'falling', 'no hull strike while the hatch is shut');
+  const m2 = s.entities.find((e) => e.type === 'gawman' && e.alive);
+  assert.ok(m2.position.distanceTo(s.player.position) > GAWMAN.contactRadius, 'held off the hull');
+  g.press('flightModeToggle');
+  g.step(30);
+  assert.equal(s.player.flightTransition.state, 'idle', 'the toggle is refused');
+  assert.equal(s.player.flightMode, 'hover');
+});
+
+test('sync: a flight-form drop says LOCKED only once the speeds really match', () => {
+  const g = game('story1p');
+  const s = g.state;
+  g.step(2);
+  assert.ok(g.until(() => lane(g).stage === 'ready', 60 * 60));
+  g.press('flightModeToggle');
+  assert.ok(g.until(() => lane(g).stage === 'falling', 60 * (LANE.dropWait + 2)));
+  const r = s.mission.rescue;
+  let lockedAt = null;
+  g.until(() => { if (r.sync === 'locked' && lockedAt === null) lockedAt = r.relSpeed; return r.sync === 'locked'; }, 60 * 10);
+  if (lockedAt !== null) assert.ok(lockedAt <= GAWMAN.catchSpeed + 1e-6, 'locked at ' + lockedAt.toFixed(1) + ' m/s');
+});
+
+test('lane: lost him - he and the Penelope keep moving under the result fade; the duel keeps its objective', () => {
+  const g = game('story1p');
+  const s = g.state;
+  toFalling(g);
+  assert.ok(g.until(() => s.phase === 'failed', 60 * 90, (st) => { st.player.position.set(3000, 2500, 3000); st.player.velocity.set(0, 0, 0); }));
+  const t0 = s.sim.gm.t, pen = s.entities.find((e) => e.type === 'penelope' && e.alive), p0 = pen.position.clone();
+  s.player.velocity.set(60, 0, 0);                   // the Xi drifts on: she keeps station on it
+  g.step(60);
+  assert.ok(s.sim.gm.t > t0 + 0.9, 'the beat keeps stepping in phase failed');
+  assert.ok(pen.position.distanceTo(p0) > 5, 'she still flies');
+  // the duel objective survives the wave machine
+  const h = game('story1p');
+  const hs = h.state;
+  const hr = toFalling(h);
+  h.press('hatch');
+  h.step(Math.ceil((HATCH_UNLOCK_TIME + HATCH_OPEN_TIME + 0.2) / DT));
+  assert.ok(h.until(() => hr.phase === 'aboard', 60 * 3, perfectPilot));
+  h.press('hatch');
+  assert.ok(h.until(() => hs.story.lane.stage === 'duel', 60 * 10));
+  h.step(30);
+  assert.equal(hs.mission.objective, 'DEFEAT LANE AIM');
+});
+
+test('lane: a low Xi still sees her: the station stays within about 35 degrees of the nose', () => {
+  const g = game('story1p');
+  const s = g.state;
+  g.step(2);
+  s.player.position.y = 300;
+  assert.ok(g.until(() => lane(g).stage === 'talk', 60 * 40, (st) => { st.player.position.y = 300; st.player.velocity.y = 0; }));
+  g.step(60 * 3, (st) => { st.player.position.y = 300; st.player.velocity.y = 0; });
+  const pen = s.entities.find((e) => e.type === 'penelope' && e.alive);
+  const d = pen.position.clone().sub(s.player.position);
+  const elev = Math.atan2(d.y, Math.hypot(d.x, d.z));
+  assert.ok(elev < 0.68, 'elevation ' + (elev * 57.3).toFixed(0) + ' deg');
+});

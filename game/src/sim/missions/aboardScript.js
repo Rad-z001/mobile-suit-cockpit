@@ -17,15 +17,16 @@ export const CODEX = {
   minovsky: { title: 'Minovsky particles', text: 'Particles released by mobile suit reactors that jam radar and long-range guidance. Where they are dense, sensors go blind beyond a few kilometres, so machines close in and fight by sight. Thin them out, and the old radar pickets see far again.' },
   gawman: { title: 'Gawman Nobile', text: 'One of Mafty\'s pilots, captured by the Federation. Lane Aim brought him to the fight in the Penelope\'s hand and let him go rather than fight with a prisoner in his fist. He fell into the Xi\'s open hatch at a few hundred metres, and he will tell anyone who listens.' },
   lane: { title: 'Lane Aim', text: 'Circe\'s ace and the Penelope\'s pilot. Young, gifted, and certain he is on the right side. He handed Gawman back over open sea before he fought: he wants to beat Mafty, not win by holding a hostage.' },
-  oenpeli: { title: 'Oenpeli', text: 'Gunbalanya, also called Oenpeli: an Aboriginal community in West Arnhem Land, in the north of Australia, across the East Alligator River from Kakadu. Floodplains and paperbark swamps run up to a high sandstone escarpment. A rebel group has hidden its machines in the rock country outside town and calls itself Mafty. The town has nothing to do with them.' },
+  oenpeli: { title: 'Oenbili', text: 'Oenbili, as the film calls it: Gunbalanya, also written Oenpeli, an Aboriginal community in West Arnhem Land in the north of Australia, across the East Alligator River from Kakadu. Floodplains and paperbark swamps run up to a high sandstone escarpment. A rebel group has hidden its machines in the stone country outside town and calls itself Mafty. The town has nothing to do with them.' },
   imitators: { title: 'The other Mafty', text: 'Mafty\'s name travels faster than Mafty does. Small groups across the Earth borrow it for their own fights against the emigration law. Some are bandits. Some are worth bringing in.' },
 };
 
 const said = (n) => (n === 1 ? 'once' : `${n} times`);
 
 // People and readable notices. pos: ship model frame (bow toward -Z, deck at y = SEAWRACK.deckY; command floor = bridge
-// level), feet position. area: 'deck' | 'corridor' | 'command'. kind: 'npc' (a figure) | 'sign' (a notice to read).
-// look: figure style for render/aboard.js.
+// level), feet position. area: 'deck' | 'corridor' | 'command' | 'hold' (Chapter 3: the gantry in hold two).
+// kind: 'npc' (a figure) | 'sign' (a notice to read). look: figure style for render/aboard.js. chapter: 2 (the interlude,
+// default) | 3 (the Chapter 3 launch walk).
 export const PEOPLE = [
   {
     id: 'chief', name: 'DECK CHIEF', area: 'deck', kind: 'npc', look: 'deck', pos: [10.5, 0, 6], yaw: -Math.PI / 2,
@@ -193,12 +194,49 @@ export const PEOPLE = [
       mino: { lines: [{ who: 'CAPTAIN', text: 'Minovsky particles. Every reactor out there sheds them, and they blind radar beyond a few kilometres. When the air is thick with them, you close in and shoot what you can see. Out here the air was thin — that\'s why the pickets were a threat.' }], next: 'q' },
       next: { lines: [
         { who: 'IRAM', text: 'Gawman is home, and Lane Aim is in the sea. That is more than I hoped for in one day.' },
-        { who: 'IRAM', text: 'Next: Australia. In the rock country outside Oenpeli, in Arnhem Land, there is a group that calls itself Mafty.' },
+        { who: 'IRAM', text: 'Next: Australia. In the rock country outside Oenbili, in Arnhem Land, there is a group that calls itself Mafty.' },
         { who: 'IRAM', text: 'They are not us. But they have old suits, a pad hidden in the escarpment, and the same enemy. The real Mafty needs them — find their base and bring them in.' },
         { who: 'CAPTAIN', text: 'Circe patrols that coast. Expect Gustav Karls between you and them.' },
       ], codex: 'imitators', next: 'q' },
     },
   },
 ];
+
+// ---- Chapter 3: the launch walk in hold two (sim/missions/aboard.js beginLaunchWalk) ------------------------------------
+PEOPLE.push(
+  {
+    id: 'chief3', name: 'DECK CHIEF', area: 'hold', kind: 'npc', look: 'deck', pos: [2.2, 0, -33.4], yaw: -Math.PI / 2, chapter: 3,
+    start: 'a',
+    nodes: {
+      a: {
+        lines: [
+          { who: 'DECK CHIEF', text: 'Fuelled, armed, and I greased the cover hinges myself. She\'ll come out of this hold like a cork.' },
+          { who: 'DECK CHIEF', text: 'Mind the gantry. It\'s a long way down to the floor, and I\'m not mopping you up before breakfast.' },
+        ],
+        next: 'q',
+      },
+      q: {
+        lines: [{ who: 'DECK CHIEF', text: 'Anything else?' }],
+        choices: [
+          { text: 'What do we know about Oenbili?', to: 'oen', codex: 'oenpeli', once: true },
+          { text: 'See you tonight, Chief.', end: true },
+        ],
+      },
+      oen: { lines: [{ who: 'DECK CHIEF', text: 'Floodplain and stone country, the far north of Australia. Their machines are older than I am. Don\'t shoot anything that waves at you.' }], next: 'q' },
+    },
+  },
+  {
+    id: 'gawman3', name: 'GAWMAN NOBILE', area: 'hold', kind: 'npc', look: 'gawman', pos: [-2.3, 0, -33.8], yaw: Math.PI / 2, chapter: 3,
+    start: 'a',
+    nodes: {
+      a: {
+        lines: [
+          { who: 'GAWMAN', text: 'Bring them home. Real Mafty or not, anyone who hates the Man Hunters is a friend of mine.' },
+          { who: 'GAWMAN', text: 'And if the Penelope turns up — I\'m not jumping out of anything ever again.' },
+        ],
+      },
+    },
+  },
+);
 
 export const PEOPLE_BY_ID = Object.fromEntries(PEOPLE.map((p) => [p.id, p]));

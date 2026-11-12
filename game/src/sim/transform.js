@@ -73,9 +73,11 @@ export function stepTransform(S, dt) {
   }
 
   if (xf.state === 'idle') {
+    const syncHold = Number.isFinite(rt.syncHoldT) && rt.time - rt.syncHoldT < 0.25;   // SPEED SYNC engaged on Gawman
     if (inp.flightModeToggle && xf.cooldown <= 0) {
       if (p.flightMode === 'hover') {
-        if (flightUnitHealth(S) <= 0) refuse(S, 'FLIGHT UNIT LOST');
+        if (syncHold) refuse(S, 'SPEED SYNC ENGAGED');
+        else if (flightUnitHealth(S) <= 0) refuse(S, 'FLIGHT UNIT LOST');
         else begin(S, 'minovsky', false);
       } else begin(S, 'hover', false);
     } else if (inp.flightModeToggle && p.flightMode === 'hover' && flightUnitHealth(S) <= 0) {

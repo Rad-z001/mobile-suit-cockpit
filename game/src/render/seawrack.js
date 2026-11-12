@@ -534,9 +534,10 @@ export function createSeawrack({ scene, uniforms }) {
 
   function update(dt, state) {
     const st = state.story;
-    const on = !!(st && st.chapter === 2 && st.seawrack);
+    const on = !!(st && (st.chapter === 2 || st.chapter === 3) && st.seawrack);   // Chapter 3 launches from her
     ship.visible = on;
-    for (const p of pickets) p.g.visible = on;
+    const pk = (on && Array.isArray(st.pickets)) ? st.pickets : [];
+    pickets.forEach((p, i) => { p.g.visible = i < pk.length; });
     if (!on) return;
     const sw = st.seawrack;
     ship.position.set(sw.position.x, sw.position.y, sw.position.z);
@@ -544,13 +545,13 @@ export function createSeawrack({ scene, uniforms }) {
     shipMat.uniforms.uDmg.value = 0.6 * (1 - sw.hp);
     wake.visible = sw.alive;
     const t = num(state.time, 0);
-    st.pickets.forEach((pk, i) => {
+    pk.forEach((q, i) => {
       const P = pickets[i];
       if (!P) return;
-      P.g.position.set(pk.position.x, 0, pk.position.z);
+      P.g.position.set(q.position.x, 0, q.position.z);
       P.g.rotation.y = i * 1.7;
-      P.arr.rotation.y = pk.sweep * 1.6;
-      P.lamp.visible = pk.painted ? Math.sin(t * 18) > 0 : Math.sin(t * 3 + i) > 0.6;
+      P.arr.rotation.y = q.sweep * 1.6;
+      P.lamp.visible = q.painted ? Math.sin(t * 18) > 0 : Math.sin(t * 3 + i) > 0.6;
     });
     void dt;
   }

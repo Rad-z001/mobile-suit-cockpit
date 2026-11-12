@@ -224,8 +224,14 @@ export function stepFlight(S, dt, controlled) {
     const syncW = as && as.w > 0 ? as.w : 0;
     const full = m.cruise * bl * sc;                       // what a full stick asks for (boost included)
     if (syncW > 0) {
+      const lp = _vt.length();
+      if (lp > full) _vt.multiplyScalar(full / lp);          // diagonal keys are never worth more than a full stick
       const k = Math.min(1, (Number.isFinite(as.maxRel) ? as.maxRel : full) / Math.max(1, full));
       _vt.multiplyScalar(1 - syncW * (1 - k));
+      if (as.dir && Number.isFinite(as.closeCap)) {          // hatch not open: no pushing into him (away / sideways is free)
+        const c = _vt.dot(as.dir);
+        if (c > as.closeCap) _vt.addScaledVector(as.dir, (as.closeCap - c) * syncW);
+      }
       _vt.addScaledVector(as.vel, syncW);
     }
     const lim = full + (syncW > 0 ? as.vel.length() * syncW : 0);

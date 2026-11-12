@@ -49,6 +49,7 @@ const FAIL_REASON = {
   sea: 'Gawman was lost to the sea',
   hull: 'Gawman hit the hull — too fast or hatch closed',
   seawrack: 'Seawrack was sunk',
+  ejected: 'The Xi was lost',
 };
 
 function loadMission() {
@@ -126,7 +127,7 @@ export function createLobby({ state, net, root, board, unboard }) {
   state.setup.mission = pick;
   if (pick === 'story2') state.setup.checkpoint = loadCheckpoint();
   if (pick === 'story1p') state.setup.checkpoint = loadCheckpoint1();
-  let savedCk = null, savedCodexN = 0;
+  let savedCk = null, savedCodexN = 0, ejectT = 0;
 
   const ui = {
     view: hashPick ? 'soloboard' : 'main',  // 'main' | 'mp' | 'solo' (mission pick) | 'soloboard' (outside a room and a match)
@@ -642,14 +643,20 @@ export function createLobby({ state, net, root, board, unboard }) {
       const cx = state.story && state.story.codex;
       if (Array.isArray(cx) && cx.length !== savedCodexN) { savedCodexN = cx.length; saveCodex([...new Set([...loadCodex(), ...cx])]); }
       // CR-004 single player: the mission has ended. Free the mouse once and show the result panel.
-      if (ui.solo && !ui.end && N.mode === 'offline' && (state.phase === 'failed' || state.phase === 'victory')) {
+      // An ejection or a crash ('ejected') ends a single-player run too: after its own scene has played (monitor card at
+      // about 2.3-3.5 s), the result panel offers RETRY like any other failure.
+      ejectT = state.phase === 'ejected' ? ejectT + dt : 0;
+      const ended = state.phase === 'failed' || state.phase === 'victory' || (state.phase === 'ejected' && ejectT > 4.5);
+      if (ui.solo && !ui.end && N.mode === 'offline' && ended) {
         const mission = state.mission || {};
         // CR-008: the story chapter runs the 'waves' battle, so the picked card (ui.mission) names the run, not mission.id.
         // CR-013: once Chapter 2 has begun, the run is 'story2' (RETRY restarts at its checkpoint); once the Penelope has
         // arrived in Chapter 1, 'story1p' (RETRY restarts there).
         const st = state.story || {};
         const run = st.chapter === 2 ? 'story2' : st.chapter === 1 && st.lane ? 'story1p' : ui.mission === 'story1' ? 'story1' : (mission.id || ui.mission);
-        ui.end = { victory: state.phase === 'victory', mission: run, result: mission.result || {} };
+        const result = { ...(mission.result || {}) };
+        if (state.phase === 'ejected' && !result.reason) result.reason = 'ejected';
+        ui.end = { victory: state.phase === 'victory', mission: run, result };
         unboard();
       }
       const key = screenKey();

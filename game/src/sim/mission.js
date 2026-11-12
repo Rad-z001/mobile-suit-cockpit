@@ -9,7 +9,9 @@ import { resetHatch, closeHatch, stepHatch } from './hatch.js';
 import { beginGawman, resetGawman, updateGawman } from './missions/gawman.js';
 import { isStory, beginBoarding } from './boarding.js';
 import { beginChapter2, updateSeawrack } from './missions/seawrack.js';
-import { beginLane, beginLaneCheckpoint, updateLane } from './missions/lane.js';
+import { beginLane, beginLaneCheckpoint, updateLane, updateLaneAfter } from './missions/lane.js';
+
+export { updateLaneAfter };
 
 export { updateGawman };
 
@@ -219,7 +221,7 @@ export function updateMission(S, dt) {
     case 'active': {
       let left = 0;
       for (const e of ships) if (e.alive) left++;
-      m.objective = `DESTROY HOSTILES — WAVE ${m.wave}/${m.waveCount} (${left} LEFT)`;
+      m.objective = S.story.lane && S.story.lane.stage === 'duel' ? 'DEFEAT LANE AIM' : `DESTROY HOSTILES — WAVE ${m.wave}/${m.waveCount} (${left} LEFT)`;
       if (left === 0 && rt.time - rt.waveStartTime > 0.5) {
         if (m.wave >= m.waveCount) {
           rt.waveState = 'victory';

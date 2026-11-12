@@ -6,6 +6,11 @@
 //   'lift'       black, a short ride up
 //   'command'    the bridge-level Command room: the briefing (Iram Masam, the Captain) with optional questions
 //   'end'        fade out, then phase 'victory' (Chapter 2 complete, Chapter 3 unlocked: state.story.unlock = 3)
+// Chapter 3 opening (owner: "walk through the bridge to the Gundam, like the space cargo"), beginLaunchWalk:
+//   'hold'       the pilot on foot in hold two under the closed covers: a gantry runs from the forward bulkhead to the
+//                Xi's open chest hatch at cockpit height (CATWALK); the deck chief and Gawman see him off
+//   'board'      reaching the hatch fades to black, then phase 'startup' seated in the Xi (story.stage 'cockpit'); the
+//                cold start and the launch out of the hold belong to sim/missions/oenbili.js
 // The pilot walks in the ship's model frame (render/seawrack.js: bow toward -Z, +X starboard, y up from the waterline);
 // state.story.walk holds that, state.story.pilot the same in world space. The ship keeps sailing.
 // Talking: state.story.talk = { id, node, i, lines, choices, sel } while a conversation is open; Enter advances, W / S
@@ -15,15 +20,20 @@ import { ABOARD as A, SEAWRACK as C } from '../tuning.js';
 import { XI_COCKPIT, XI_MODEL_HEIGHT } from '../../state.js';   // the cockpit point of the hidden suit
 import { pushEvent, setMessage, clamp } from '../util.js';
 import { endMission } from '../damage.js';
+import { resetHatch } from '../hatch.js';
 import { PEOPLE, PEOPLE_BY_ID } from './aboardScript.js';
 
 const D = C.deckY;
-const _v = new THREE.Vector3();
+const _v = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 
 // hold two (render/seawrack.js HOLD): the Xi goes down inside it in the homecoming shot and stays there, facing the bow
 export const HOLD2 = { z0: -C.portalZ + 9, z1: -C.bridgeZ - C.bridgeHalf - 4, floor: -8 };
 export const XI_HOLD = { x: 0, z: (HOLD2.z0 + HOLD2.z1) / 2, feet: HOLD2.floor + 0.2 };
 const SUIT_POINT = [0, XI_HOLD.feet + XI_MODEL_HEIGHT / 2 + XI_COCKPIT.y, XI_HOLD.z];   // its cockpit, for player.position
+export const SUIT_COCKPIT = SUIT_POINT;
+// Chapter 3: the gantry across hold two, model frame. A wider landing at the forward bulkhead door (pad half width, padLen
+// long), then a narrow walkway to the Xi's chest; y = its floor (just under the cockpit), z1 = the open hatch.
+export const CATWALK = { half: 0.85, pad: 3.2, padLen: 3.4, z0: HOLD2.z0 + 1.2, z1: XI_HOLD.z - 5.0, y: SUIT_POINT[1] - 1.2 };
 
 export function shipToWorld(sw, l, out) {
   const c = Math.cos(sw.heading), s = Math.sin(sw.heading);
@@ -33,6 +43,7 @@ export function shipToWorld(sw, l, out) {
 // height of the deck surface under the pilot (model frame): the pitched landing hatch lid, its coaming, else the deck
 export function floorY(area, x, z) {
   if (area === 'command') return D + A.command.floor;
+  if (area === 'hold') return CATWALK.y;
   if (area !== 'deck') return D;
   const W2 = C.shipBeam / 2 - 4.6;
   if (z > -C.portalZ + 9 && z < -C.bridgeZ - C.bridgeHalf - 4) {
@@ -64,13 +75,67 @@ export function beginAboard(S) {
   st.talk = null;
   st.codex = st.codex || [];
   st.codexNew = null;
-  st.people = PEOPLE.map((q) => ({ id: q.id, name: q.name, area: q.area, kind: q.kind, look: q.look, pos: q.pos.slice(), yaw: q.yaw, talked: false }));
+  st.people = peopleFor(2);
   st.unlock = 0;
   p.velocity.copy(st.seawrack.velocity);
   S.mission.objective = '';
   pushEvent(S, 'homecoming', {});
   setMessage(S, 'SEAWRACK: Opening number two. Take her straight down, Xi — I want those covers shut before anything flies over.', 7);
   sync(S);
+}
+
+// the figures and notices of one chapter's scenes (aboardScript.js: chapter 2 = the interlude, 3 = the launch walk)
+function peopleFor(chapter) {
+  return PEOPLE.filter((q) => (q.chapter || 2) === chapter)
+    .map((q) => ({ id: q.id, name: q.name, area: q.area, kind: q.kind, look: q.look, pos: q.pos.slice(), yaw: q.yaw, talked: false }));
+}
+
+// Chapter 3 opening: on foot in hold two, the gantry to the Xi. state.story.seawrack is set by the mission first.
+export function beginLaunchWalk(S) {
+  const rt = S.sim, st = S.story;
+  rt.aboard = { t: 0, fadeT: A.fadeTime / 2, said: {}, visited: {}, taken: {}, selPrev: 0, ctx: context(S), in0: { yaw: S.input.walkYaw || 0, pitch: S.input.walkPitch || 0 }, briefed: true, launch: true };
+  S.phase = 'aboard';
+  st.stage = 'hold';
+  st.area = 'hold';
+  st.cine = 1; st.fade = 1;                                 // fades in from black
+  st.walk = { pos: new THREE.Vector3(0, CATWALK.y + A.eye, CATWALK.z0 + 0.8), vel: new THREE.Vector3(), yaw: Math.PI, pitch: 0, step: 0 };
+  setYaw(S, Math.PI, -0.12);                                // facing the Xi (toward the stern), a little down
+  st.talk = null;
+  st.codex = st.codex || [];
+  st.codexNew = null;
+  st.people = peopleFor(3);
+  st.unlock = 0;
+  S.mission.objective = 'CROSS THE GANTRY TO THE XI';
+  sync(S);
+}
+
+// the hatch reached: seated in the Xi, still in the closed hold; the cold start follows (phase 'startup')
+function finishLaunchWalk(S) {
+  const rt = S.sim, st = S.story, p = S.player, sw = st.seawrack;
+  rt.boardDone = true;
+  rt.launchWalkDone = true;
+  st.stage = 'cockpit';
+  st.fade = 0;
+  st.talk = null; st.prompt = null;
+  S.phase = 'startup';
+  S.startup.stage = 0; S.startup.progress = 0;
+  rt.startupBusy = false; rt.startupClosing = false;
+  resetHatch(S, true);                                      // every cold start begins with the hatch open
+  p.quaternion.setFromAxisAngle(_up, -sw.heading);          // the Xi faces the bow
+  S.mission.objective = 'PRESS [ENTER] — CLOSE HATCH';
+  syncHold(S, 0);
+}
+
+// Chapter 3, phase 'startup': the suit (player.position = its cockpit) stays in hold two while Seawrack sails on
+export function syncHold(S, dt) {
+  const st = S.story, sw = st.seawrack, p = S.player;
+  if (!sw) return;
+  sw.position.addScaledVector(sw.velocity, dt);
+  shipToWorld(sw, _v.fromArray(SUIT_POINT), p.position);
+  p.velocity.copy(sw.velocity);
+  p.speed = sw.velocity.length();
+  p.altitude = p.position.y;
+  p.quaternion.setFromAxisAngle(_up, -sw.heading);
 }
 
 function sync(S) {
@@ -193,6 +258,13 @@ function stepWalk(S, dt) {
   } else if (st.area === 'corridor') {
     w.pos.x = clamp(w.pos.x, -A.corridor.x, A.corridor.x);
     w.pos.z = clamp(w.pos.z, A.corridor.z0, A.corridor.z1 + 0.5);
+  } else if (st.area === 'hold') {
+    // the landing by the bulkhead door, then the narrow gantry (railings both sides) out to the Xi's hatch
+    w.pos.z = clamp(w.pos.z, CATWALK.z0, CATWALK.z1);
+    const onPad = w.pos.z < CATWALK.z0 + CATWALK.padLen;
+    const hw = onPad ? CATWALK.pad : CATWALK.half;
+    if (!onPad && pz < CATWALK.z0 + CATWALK.padLen && Math.abs(w.pos.x) > CATWALK.half) { w.pos.z = pz; }   // the railing ends
+    w.pos.x = clamp(w.pos.x, -hw, hw);
   } else {
     w.pos.x = clamp(w.pos.x, -A.command.x, A.command.x);
     w.pos.z = clamp(w.pos.z, A.command.z0, A.command.z1);
@@ -235,7 +307,7 @@ export function updateAboard(S, dt) {
   sw.position.addScaledVector(sw.velocity, dt);            // Seawrack keeps sailing
   if (st.codexNew) { st.codexNew.t -= dt; if (st.codexNew.t <= 0) st.codexNew = null; }
   const say = (key, text, ttl) => { if (!ab.said[key]) { ab.said[key] = true; setMessage(S, text, ttl); } };
-  if (st.stage !== 'deck' && st.stage !== 'corridor' && st.stage !== 'command') st.prompt = null;
+  if (st.stage !== 'deck' && st.stage !== 'corridor' && st.stage !== 'command' && st.stage !== 'hold') st.prompt = null;
 
   switch (st.stage) {
     case 'homecoming':
@@ -254,6 +326,7 @@ export function updateAboard(S, dt) {
         S.mission.objective = 'REPORT TO COMMAND — THE DOOR UNDER THE BRIDGE';
       }
       break;
+    case 'hold':
     case 'deck':
     case 'corridor':
     case 'command': {
@@ -274,12 +347,26 @@ export function updateAboard(S, dt) {
         if (Math.abs(w.pos.x) < A.door.x && w.pos.z > A.door.z - 0.3) { ab.fadeT = A.fadeTime; ab.pending = 'corridor'; pushEvent(S, 'uiClick'); }
       } else if (st.area === 'corridor') {
         if (w.pos.z > A.corridor.z1) { st.stage = 'lift'; ab.liftT = A.liftTime; st.fade = 1; S.mission.objective = ''; pushEvent(S, 'uiClick'); }
+      } else if (st.area === 'hold') {
+        if (ab.t > 2.5) say('h1', 'SEAWRACK: Covers stay shut until you are sealed in. Then we open number two and you go straight up.', 7);
+        if (w.pos.z > CATWALK.z1 - 8) say('h2', 'DECK CHIEF: Hatch is open and the seat is warm. In you get.', 5);
+        if (w.pos.z >= CATWALK.z1 - 0.05) {
+          st.stage = 'board'; ab.fadeT = 0; w.vel.set(0, 0, 0); st.prompt = null;
+          S.mission.objective = '';
+          pushEvent(S, 'uiClick');
+        }
       } else if (!ab.briefed && Math.hypot(w.pos.x - A.table[0], w.pos.z - A.table[1]) < A.briefRange) {
         ab.briefed = true;
         startTalk(S, 'iram');
       }
       break;
     }
+    case 'board':
+      // Chapter 3: into the cockpit - a fade to black, then the seated cold start
+      ab.fadeT += dt;
+      st.fade = Math.min(1, ab.fadeT / A.fadeTime);
+      if (ab.fadeT >= A.fadeTime) { finishLaunchWalk(S); return; }
+      break;
     case 'lift':
       ab.liftT -= dt;
       st.fade = 1;

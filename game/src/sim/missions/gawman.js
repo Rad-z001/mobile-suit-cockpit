@@ -52,7 +52,7 @@ export function resetGawman(S) {
   const rt = S.sim;
   for (const e of S.entities) if (e.type === 'gawman' || (e.type === 'penelope' && e.faction === 'neutral')) e.alive = false;
   rt.gm = null;
-  rt.assist = { w: 0, vel: new THREE.Vector3(), maxRel: Infinity };
+  rt.assist = { w: 0, vel: new THREE.Vector3(), maxRel: Infinity, dir: new THREE.Vector3(0, 0, -1), closeCap: Infinity };
 }
 
 // the flight starts: spawn the carrier 1.5 km ahead (same altitude, along the horizontal heading)
@@ -256,19 +256,30 @@ export function updateGawman(S, dt) {
 // hover (requestHover); in hover (no transformation running) the strength syncW ramps to 1 over syncEngage s, and the
 // flight model (sim/flight.js) makes his velocity the no-thrust velocity with that weight. It only matches speed - it
 // never steers toward him; the pilot's thrust is relative to him and tops out at max(syncMinRel, syncGain x gap) m/s.
-// r.sync: 'off' (out of range) | 'hover' (waiting for hover form) | 'engaging' | 'locked'.
+// r.sync: 'off' (out of range) | 'hover' (waiting for hover form) | 'engaging' | 'locked' (full strength AND the speeds
+// have actually matched once: relative speed under catchSpeed; it stays locked while the strength holds).
+// The pilot cannot leave hover while it is engaged (transform.js reads rt.syncHoldT). The thrust limit also counts the
+// gap to the HULL (he can come in beside the cockpit), and with the hatch not fully open the pilot cannot push toward
+// him inside ~syncHullStop m of the hull (limit only, along the line to him: it never steers).
 function stepSync(S, r, g, dist, dt) {
   const rt = S.sim, p = S.player;
   const inRange = dist <= GAWMAN.syncRange;
+  if (inRange) rt.syncHoldT = rt.time;
   if (inRange && requestHover(S)) pushEvent(S, 'syncHover');
   const ready = inRange && p.flightMode === 'hover' && p.flightTransition.state === 'idle';
   r.syncW = ready ? Math.min(1, r.syncW + dt / GAWMAN.syncEngage) : Math.max(0, r.syncW - dt / GAWMAN.syncRelease);
   const was = r.sync;
-  r.sync = !inRange ? 'off' : !ready ? 'hover' : r.syncW >= 1 ? 'locked' : 'engaging';
+  const matched = r.syncW >= 1 && (was === 'locked' || r.relSpeed <= GAWMAN.catchSpeed);
+  r.sync = !inRange ? 'off' : !ready ? 'hover' : matched ? 'locked' : 'engaging';
   if (r.sync === 'locked' && was !== 'locked') pushEvent(S, 'syncLocked');
+  _d.copy(g.position).sub(p.position);
+  const dc = _d.length();
+  const hullGap = dc - GAWMAN.contactRadius;
   rt.assist.w = r.syncW;
   rt.assist.vel.copy(g.velocity);
-  rt.assist.maxRel = Math.max(GAWMAN.syncMinRel, GAWMAN.syncGain * dist);
+  rt.assist.maxRel = Math.max(GAWMAN.syncMinRel, GAWMAN.syncGain * Math.min(dist, Math.max(0, hullGap)));
+  rt.assist.dir.copy(_d).divideScalar(Math.max(1e-6, dc));
+  rt.assist.closeCap = p.hatch.state === 'open' ? Infinity : GAWMAN.syncGain * Math.max(0, hullGap - GAWMAN.syncHullStop);
   r.assist = r.syncW;
 }
 
@@ -351,8 +362,8 @@ export function stepRescue(S, dt, L = LINES) {
   m.objective = hatch.state === 'open' ? 'MATCH SPEED — CATCH GAWMAN' : 'OPEN THE HATCH — CATCH GAWMAN';
   let h = '';
   const openish = hatch.state === 'open' || hatch.state === 'opening' || hatch.state === 'unlocking';
-  if (r.sync === 'hover') h = 'SPEED SYNC — DROPPING TO HOVER';
-  else if (!openish && dist < 700) h = 'OPEN THE HATCH [H]';
+  if (!openish && dist < 900) h = 'OPEN THE HATCH [H]';
+  else if (r.sync === 'hover') h = 'SPEED SYNC — DROPPING TO HOVER';
   else if (hatch.state === 'open' && dist < 120 && r.relSpeed > GAWMAN.contactSpeed) h = 'TOO FAST';
   else if (dist < 350 && r.relSpeed > GAWMAN.catchSpeed && Math.abs(r.relVel.y) >= Math.max(Math.abs(r.relVel.x), Math.abs(r.relVel.z))) h = 'MATCH HIS FALL';
   else if (dist < 350 && r.relSpeed > GAWMAN.catchSpeed) h = 'MATCH SPEED';

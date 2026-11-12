@@ -45,7 +45,7 @@ export function createMix(kit) {
     switch (e.type) {
       case 'gawmanCaught': bannerT = 4.5; bannerText = 'GAWMAN ABOARD'; bannerSub = 'CLOSE THE HATCH'; bannerCol = GRN; break;
       case 'gawmanLost': bannerT = 5; bannerText = 'GAWMAN LOST'; bannerSub = String(e.reason || '').toUpperCase(); bannerCol = RED; break;
-      case 'gawmanJump': bannerT = 3; bannerText = 'GAWMAN JUMPED'; bannerSub = state.world && state.world.night ? 'FIND THE FLASHLIGHT' : 'OPEN THE HATCH — GET UNDER HIM'; bannerCol = AMB; break;
+      case 'gawmanJump': bannerT = 3; bannerText = 'GAWMAN JUMPED'; bannerSub = state.world && state.world.night ? 'FIND THE FLASHLIGHT' : 'OPEN THE HATCH — PUT THE CATCH RING ON HIM'; bannerCol = AMB; break;
       case 'rescueHint': hintT = 4; hintText = String(e.text || '').toUpperCase(); break;
       default: break;
     }
@@ -445,6 +445,7 @@ export function createMix(kit) {
   function drawMatchSpeed(r, ga, ax) {
     const k = rescueK * ga;
     if (k < 0.01 || !r.relVel) return;
+    if (r.phase === 'aboard' || r.phase === 'lost') return;   // the readout froze at the catch / the loss
     const inEnv = !!r.inEnvelope;
     const col = inEnv ? GRN : WHITE, hot = inEnv ? GRN : AMB;
     const xa = (0.76 * ax - 0.03) + ((1.24 * ax + 0.1) - (0.76 * ax - 0.03)) * ease(kit.hatchDoor ? kit.hatchDoor() : 0);
@@ -458,8 +459,15 @@ export function createMix(kit) {
     kit.T(syncOn ? 'SPEED SYNC' : 'MATCH SPEED', x0 + 88, yTitle, rgba(syncOn ? sCol : col, 0.95 * k), 24, 'center', 500);
     ctx.beginPath(); ctx.moveTo(x0, yTitle + 8); ctx.lineTo(x0 + 176, yTitle + 8); st(rgba(col, 0.5 * k), 1.4);
     if (syncOn && sw > 0.01) { ctx.beginPath(); ctx.moveTo(x0, yTitle + 8); ctx.lineTo(x0 + 176 * sw, yTitle + 8); st(rgba(sCol, 0.95 * k), 3.2); }
-    const sTxt = sync === 'locked' ? 'LOCKED — CLOSE IN' : sync === 'engaging' ? `ENGAGING ${Math.round(sw * 100)}%` : sync === 'hover' ? 'DROPPING TO HOVER' : (r.phase === 'falling' ? 'SYNC INSIDE 1.5 KM' : '');
-    if (sTxt) kit.T(sTxt, x0 + 88, yTitle + 38 + 3 * 36, rgba(sCol, (sync === 'hover' && Math.sin(time * 10) < 0 ? 0.45 : 0.95) * k), 18, 'center', 500);
+    // status above the title (below the rows it ran into the radar with the hatch open); the hatch comes first
+    const hs = state.player && state.player.hatch ? state.player.hatch.state : 'closed';
+    const shut = syncOn && hs !== 'open';
+    const sTxt = shut ? (hs === 'closed' ? 'OPEN THE HATCH [H]' : 'HATCH OPENING…') : sync === 'locked' ? 'LOCKED — CLOSE IN' : sync === 'engaging' ? `ENGAGING ${Math.round(sw * 100)}%` : sync === 'hover' ? 'DROPPING TO HOVER' : (r.phase === 'falling' ? 'SYNC INSIDE 1.5 KM' : '');
+    const blink = (shut && hs === 'closed') || sync === 'hover' ? (Math.sin(time * 10) < 0 ? 0.45 : 0.95) : 0.95;
+    if (sTxt) kit.T(sTxt, x0 + 88, yTitle - 30, rgba(shut ? AMB : sCol, blink * k), 18, 'center', 500);
+    // with the hatch open the centre hint line is hidden by the tunnel: show the rescue hint here instead
+    const doorK = kit.hatchDoor ? kit.hatchDoor() : 0;
+    if (doorK >= 0.05 && hintT > 0 && hintText) kit.T(hintText, x0 + 88, yTitle - 56, rgba(AMB, saturate(hintT / 0.6) * k), 18, 'center', 500);
     const v = r.relVel;
     const rows = [
       ['FWD', 'BACK', -num(v.z, 0), 'u', 'd'],
@@ -480,7 +488,13 @@ export function createMix(kit) {
   function drawRescue(p, byId, projEnt, hatchOpenK, ga, ax, hooks, markerOnly) {
     const m = state.mission || {};
     const r = m.rescue;
-    if (!r) return;
+    if (!r) {
+      // story beats without a rescue readout yet (Chapter 1 before the jump): their objective still needs a line
+      const st = state.story || {}, ln = st.lane;
+      const beat = ln && (ln.stage === 'arrive' || ln.stage === 'talk' || ln.stage === 'ready' || ln.stage === 'aboard');
+      if (!markerOnly && beat && m.objective && hatchOpenK < 0.05) kit.T(String(m.objective).toUpperCase(), CX, UP(0, 0.64).y, rgba(WHITE, 0.82 * ga), 22, 'center');
+      return;
+    }
     const g = byId.get(r.gawmanId);
     const ka = rescueK * ga;
     // objective + hint line

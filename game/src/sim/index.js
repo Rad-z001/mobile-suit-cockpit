@@ -15,7 +15,7 @@ import { stepProjectiles, cleanupEntities, updateThreat } from './projectiles.js
 import {
   damagePlayer, updateEject, updateSectors, seaImpact, recomputeThrust, updateParts,
 } from './damage.js';
-import { initStartup, updateStartup, updateMission, updateGawman, holdStartAltitude } from './mission.js';
+import { initStartup, updateStartup, updateMission, updateGawman, updateLaneAfter, holdStartAltitude } from './mission.js';
 import { stepHatch } from './hatch.js';
 import { isStory, updateBoarding, syncStory, stepCargo } from './boarding.js';
 import { updateAboard } from './missions/aboard.js';
@@ -158,6 +158,7 @@ export function createSim(state, opts = {}) {
     if (phase === 'flight' || phase === 'disabled') S.mission.elapsed += (phase === 'disabled' ? dt : 0);
     if (inFlight && !rt.netOn) updateMission(S, dt);
     if (S.mission.id === 'gawman' && !rt.netOn && (inFlight || phase === 'victory' || phase === 'failed')) updateGawman(S, dt);
+    if (rt.waveState === 'lane' && !rt.netOn && phase === 'failed') updateLaneAfter(S, dt);   // Chapter 1: lost him, keep the world moving
     if ((S.phase === 'flight' || S.phase === 'disabled') && !rt.netOn) updateEject(S, dt);
     if (S.phase === 'flight' && p.hull < 0.25 && p.hull > 0) raiseAlert(S, 'hullcrit', 'HULL CRITICAL', 'warning', 0.5);
     updateSectors(S, dt);
