@@ -540,8 +540,10 @@ export function applyEnemyHit(S, e, dmg, part, hitPos, size, src = 'beam') {
   const rt = S.sim;
   if (!e.alive) return;
   e.hp -= dmg;
-  rt.hits++;
-  pushEvent(S, 'enemyHit', { id: e.id, part });
+  const ally = src === 'ally';                 // Chapter 3: a rebel's beam - not the player's hit (accuracy) or kill
+  e.lastHitBy = ally ? 'ally' : 'player';
+  if (!ally) rt.hits++;
+  pushEvent(S, 'enemyHit', { id: e.id, part, ally });
   if (part) damageEnemyPart(S, e, part, dmg * (ENEMY_PARTS.partDamage[src] ?? 1));
   if (size > 0 && hitPos) pushEvent(S, 'explosion', { position: hitPos.clone(), size });
   if (e.type === 'gustav' && e.hp > 0 && e.sim.mods.breakOk && rt.rng.chance(0.4) && e.sim.state !== 'break'
@@ -552,12 +554,20 @@ export function applyEnemyHit(S, e, dmg, part, hitPos, size, src = 'beam') {
   if (e.hp <= 0) killEnemy(S, e);
 }
 
+const ALLY_KILL_LINES = ['BILI-1: Got one! Old girl still bites.', 'BILI-3: Splash one Gustav!', 'BILI-2: That one\'s mine, Mafty.'];
+
 export function killEnemy(S, e) {
   if (!e.alive) return;
   const rt = S.sim;
   e.alive = false;
   e.hp = 0;
   if (rt.netOn) { rt.netAiKilled(S, e); return; }
+  if (e.lastHitBy === 'ally') {                // a rebel shot it down
+    pushEvent(S, 'allyKill', { id: e.id, name: e.name });
+    pushEvent(S, 'explosion', { position: e.position.clone(), size: 3 });
+    setMessage(S, rt.rng.pick(ALLY_KILL_LINES), 3);
+    return;
+  }
   S.mission.kills++;
   pushEvent(S, 'kill', { id: e.id, name: e.name });
   pushEvent(S, 'explosion', { position: e.position.clone(), size: 3 });

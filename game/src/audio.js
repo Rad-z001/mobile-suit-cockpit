@@ -586,6 +586,10 @@ export function createAudio(state) {
         blip('combat', { type: 'sine', freq: 120, freqEnd: 60, duration: 0.15, gain: 0.15, exterior: true });
         break;
 
+      case 'allyKill':            // Chapter 3: a rebel shot one down (the blast, without the player's kill chime)
+        blip('combat', { type: 'sine', freq: 60, freqEnd: 30, duration: 0.6, gain: 0.22, exterior: true });
+        noiseBurst('combat', { filterType: 'lowpass', filterFreq: 300, duration: 0.7, gain: 0.15, exterior: true });
+        break;
       case 'kill':
         blip('combat', { type: 'sine', freq: 60, freqEnd: 30, duration: 0.6, gain: 0.3, exterior: true });
         noiseBurst('combat', { filterType: 'lowpass', filterFreq: 300, duration: 0.7, gain: 0.2, exterior: true });

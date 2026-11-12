@@ -131,6 +131,9 @@ export function createMatch(S, rt) {
     rt.startupBusy = false; rt.startupDone = false; rt.startupClosing = false;
     // CR-004: a match is always the plain mission; the cold start begins with the hatch open and closes by itself
     resetGawman(S); S.mission.id = 'waves'; S.mission.rescue = null; S.world.night = false; rt.missionId = 'waves';
+    // a story chapter left behind by single player (Chapter 3 land, its ship, the parked lock) never follows into a match
+    S.world.terrain = null; rt.parked = false; rt.launchWalkDone = false;
+    Object.assign(S.story, { chapter: 0, stage: 'none', seawrack: null, ob: null, launch: null, lane: null, talk: null });
     resetHatch(S, true);
     S.mission.wave = 0; S.mission.waveCount = 3; S.mission.kills = 0; S.mission.elapsed = 0; S.mission.result = null;
     S.mission.objective = 'STAND BY';

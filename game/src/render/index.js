@@ -84,7 +84,7 @@ export function createRenderer(canvas, state) {
     if (monitor.targetRt.samples !== cur.samples) { monitor.targetRt.samples = cur.samples; monitor.targetRt.dispose(); }
   }
   let time = 0;
-  let lastWorldFov = -1, lastDispFov = -1, lastAspect = -1;
+  let lastWorldFov = -1, lastDispFov = -1, lastAspect = -1, aboardWas = false;
   const view = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), fwd: new THREE.Vector3(0, 0, -1), pixAng: 0.002, thermal: false };
   const FWD = new THREE.Vector3(0, 0, -1);
   let currentTargetId = null;
@@ -176,6 +176,8 @@ export function createRenderer(canvas, state) {
     chase.update(dt, wc, aspect);                      // CR-005: third-person chase camera + own-suit entity (V)
     boarding.update(dt, wc, aspect);                   // CR-008: phase 'boarding' puts the camera at the pilot's eye
     aboard.update(dt, wc, aspect);                     // CR-014: phase 'aboard' owns the camera (homecoming shot, then first person)
+    if (aboardWas && !aboard.active) { lastWorldFov = -1; wc.fov = rig.worldFov; wc.aspect = aspect; wc.near = 1; wc.updateProjectionMatrix(); }   // its walk FOV must not stick
+    aboardWas = aboard.active;
     const outside = chase.hidden || boarding.active || aboard.active;   // no cockpit, no sphere HUD
 
     view.pos.copy(wc.position);

@@ -14,7 +14,7 @@ import { NOISE, SKY } from './shaders.js';
 import { sample, classAt, bake, GRID, PAD_H } from '../sim/lands/oenbili.js';
 import { OENBILI as OB } from '../sim/tuning.js';
 
-const FINE = { x0: -17000, x1: 20000, z0: -17000, z1: 17000 };   // 100 m mesh = the sim grid
+const FINE = { x0: -17200, x1: 20000, z0: -17200, z1: 17200 };   // 100 m mesh = the sim grid (bounds on the 400 m lattice)
 const COARSE = 400, APRON = 2000, APRON_HALF = 64000, MASK_HALF = 64000, MASK_N = 1024;
 
 // class colours (linear)
@@ -133,7 +133,7 @@ export function createLand({ scene, uniforms }) {
       for (let j = fr - 1; j >= 0; j--) edge.push([FINE.x0, FINE.z0 + j * cell]);
       for (let k = 0; k < edge.length - 1; k++) {
         const [x0, z0] = edge[k], [x1, z1] = edge[k + 1], h0 = gridH(x0, z0), h1 = gridH(x1, z1);
-        P.push(x0, h0, z0, x1, h1, z1, x0, h0 - 40, z0, x1, h1, z1, x1, h1 - 40, z1, x0, h0 - 40, z0);
+        P.push(x0, h0, z0, x1, h1, z1, x0, h0 - 160, z0, x1, h1, z1, x1, h1 - 160, z1, x0, h0 - 160, z0);   // deep enough for the relief
         const c = colourAt(x0, z0, h0, 0.8);
         for (let t = 0; t < 6; t++) C2.push(c[0] * 0.7, c[1] * 0.7, c[2] * 0.7);
       }
@@ -153,10 +153,31 @@ export function createLand({ scene, uniforms }) {
     group.add(coarse);
     // apron out to the haze, 15 m low (so it never shows through the grid where they overlap)
     const ac = Math.round((2 * APRON_HALF) / APRON);
-    const inGrid = (x, z) => Math.abs(x) < half - APRON && Math.abs(z) < half - APRON;
+    const inGrid = (x, z) => Math.abs(x) < half && Math.abs(z) < half;   // no overlap with the grid (its edge has a skirt)
     const apron = new THREE.Mesh(grassGeo(ac, ac, -APRON_HALF, -APRON_HALF, APRON, (x, z) => sample(x, z) - 15, colourAt, inGrid), mat);
     apron.frustumCulled = false;
     group.add(apron);
+    // skirt down from the grid's outer edge, so the step to the lower, coarser apron never shows the sky
+    {
+      const P = [], C2 = [], e = [];
+      for (let i = 0; i <= cc; i++) e.push([-half + i * COARSE, -half]);
+      for (let j = 1; j <= cc; j++) e.push([half, -half + j * COARSE]);
+      for (let i = cc - 1; i >= 0; i--) e.push([-half + i * COARSE, half]);
+      for (let j = cc - 1; j >= 0; j--) e.push([-half, -half + j * COARSE]);
+      for (let k = 0; k < e.length - 1; k++) {
+        const [x0, z0] = e[k], [x1, z1] = e[k + 1], h0 = gridH(x0, z0) - 0.6, h1 = gridH(x1, z1) - 0.6;
+        P.push(x0, h0, z0, x1, h1, z1, x0, h0 - 300, z0, x1, h1, z1, x1, h1 - 300, z1, x0, h0 - 300, z0);
+        const c = colourAt(x0, z0, h0, 0.8);
+        for (let t = 0; t < 6; t++) C2.push(c[0] * 0.7, c[1] * 0.7, c[2] * 0.7);
+      }
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+      sg.setAttribute('color', new THREE.Float32BufferAttribute(C2, 3));
+      sg.computeVertexNormals();
+      const outer = new THREE.Mesh(sg, new THREE.ShaderMaterial({ uniforms: mat.uniforms, vertexShader: VERT, fragmentShader: FRAG, side: THREE.DoubleSide }));
+      outer.frustumCulled = false;
+      group.add(outer);
+    }
     // land mask for the sea: 1 where the ground stands above the water
     const m = new Uint8Array(MASK_N * MASK_N);
     const mstep = (2 * MASK_HALF) / MASK_N;
@@ -197,8 +218,8 @@ export function createLand({ scene, uniforms }) {
     }
     // the rebels' pad: concrete apron with markings, two sheds under nets, fuel drums, an antenna mast
     const [bx, bz] = OB.base, py = PAD_H;
-    box(bx, py - 0.5, bz, 110, 0.7, 110, [0.36, 0.34, 0.31]);
-    for (let i = -2; i <= 2; i++) box(bx + i * 18, py + 0.2, bz, 1.2, 0.05, 70, [0.75, 0.62, 0.18]);
+    box(bx, py - 0.5, bz, 110, 1.1, 110, [0.36, 0.34, 0.31]);                       // top 0.6 m above the ground (no z-fight)
+    for (let i = -2; i <= 2; i++) box(bx + i * 18, py + 0.6, bz, 1.2, 0.3, 70, [0.75, 0.62, 0.18]);
     box(bx - 80, py, bz + 40, 30, 9, 22, [0.30, 0.27, 0.22], 0.3);
     box(bx - 80, py + 9, bz + 40, 34, 0.8, 26, [0.20, 0.24, 0.14], 0.3);
     box(bx + 70, py, bz - 55, 24, 7, 18, [0.32, 0.28, 0.22], -0.4);

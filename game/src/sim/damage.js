@@ -271,7 +271,7 @@ export function goDisabled(S) {
   clearTargeting(S);
 }
 
-export function seaImpact(S) {
+export function seaImpact(S, how = 'sea') {
   const rt = S.sim;
   const p = S.player;
   if (rt.netOn) { rt.netDie(S, 'sea'); return; }
@@ -279,7 +279,7 @@ export function seaImpact(S) {
   pushEvent(S, 'explosion', { position: p.position.clone(), size: 3 });
   S.phase = 'ejected';
   S.mission.objective = 'PILOT LOST';
-  setMessage(S, 'Impact with the sea. The pilot did not get out.', 9999);
+  setMessage(S, how === 'ground' ? 'Impact with the ground. The pilot did not get out.' : 'Impact with the sea. The pilot did not get out.', 9999);
   endMission(S, false);
   p.barrier.active = false;
   clearTargeting(S);

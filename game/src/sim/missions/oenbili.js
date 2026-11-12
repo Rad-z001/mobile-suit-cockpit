@@ -218,7 +218,8 @@ function fireAllyBeam(S, e, tg) {
 }
 function stepAllies(S, dt) {
   const ob = S.story.ob, p = S.player, rt = S.sim;
-  const enemies = S.sim.ships.filter((q) => q.alive && q.faction === 'enemy');
+  // they guard the Xi: only Gustavs that come close to it are theirs to chase (the Xi has to fight the wave itself)
+  const enemies = S.sim.ships.filter((q) => q.alive && q.faction === 'enemy' && q.position.distanceTo(p.position) < C.allyGuard);
   for (const id of ob.allyIds) {
     const e = S.entities.find((q) => q.id === id);
     if (!e || !e.alive) continue;
@@ -250,7 +251,8 @@ function stepAllies(S, dt) {
     if (e.velocity.lengthSq() > 25) orientShip(e, _a.copy(e.velocity).normalize(), 3 * dt, dt);
     e.state = a.tgt ? 'attack' : 'escort';
     a.fireT -= dt;
-    if (a.tgt && a.fireT <= 0 && e.position.distanceTo(a.tgt.position) < 4500) {
+    if (a.tgt && !enemies.includes(a.tgt)) a.tgt = null;   // it drew off from the Xi: back to escort
+    if (a.tgt && a.fireT <= 0 && e.position.distanceTo(a.tgt.position) < C.allyRange) {
       fireAllyBeam(S, e, a.tgt);
       a.fireT = rt.rng.range(C.allyFireEvery[0], C.allyFireEvery[1]);
     }
@@ -304,6 +306,7 @@ function stepTalk(S) {
 function toDefend(S) {
   const st = S.story, ob = st.ob, rt = S.sim;
   st.stage = 'defend';
+  ob.landing.progress = 0; ob.landing.ready = false;
   rt.parked = false;
   S.player.velocity.set(0, 6, 0);
   for (const id of ob.allyIds) { const e = S.entities.find((q) => q.id === id); if (e) e.state = 'escort'; }

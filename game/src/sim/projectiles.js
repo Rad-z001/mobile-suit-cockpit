@@ -178,7 +178,7 @@ export function stepProjectiles(S, dt) {
           const sl = _rd.length() || 1;
           _rd.divideScalar(sl);
           const rl = _p0.distanceTo(e.position) + 3 * s.radius;
-          const src = type === 'beam' ? 'beam' : type === 'tracer' ? 'vulcan' : 'funnel';
+          const src = e.sim && e.sim.ally ? 'ally' : type === 'beam' ? 'beam' : type === 'tracer' ? 'vulcan' : 'funnel';   // Chapter 3 rebels
           hitTarget(S, s, e.sim.dmg, e.position, type === 'beam' ? 2 : big ? 1 : 0, src, _p0, _rd, rl);
           e.alive = false;
           break;

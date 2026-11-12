@@ -104,12 +104,14 @@ export function createSim(state, opts = {}) {
     updateParts(S);
     // CR-004: cockpit hatch (H works in flight only); the wind effects need the suit to be flying
     stepHatch(S, dt, { input: inFlight, wind: controlled || phase === 'disabled' });
-    if (inFlight && !rt.parked) stepTransform(S, dt);            // Chapter 3: parked on the pad, no form changes
+    const held = rt.parked || (S.story.chapter === 3 && S.story.stage === 'launch');   // Chapter 3: pad / scripted launch
+    if (inFlight && !held) stepTransform(S, dt);                 // no form changes while held
     else resetTransform(S);
     if (controlled) updateSensorInputs(S);
     stepShield(S, dt, inFlight);
 
     stepFlight(S, dt, controlled);
+    if (rt.groundHit > 0 && phase === 'disabled') { seaImpact(S, 'ground'); return; }   // Chapter 3: the wreck hits the land
     if (rt.groundHit > 0 && phase === 'flight') {
       // Chapter 3 land: a scrape costs hull by how hard it was (a brush is cheap, a dive into a cliff is not)
       const hard = rt.groundHit;
@@ -149,7 +151,7 @@ export function createSim(state, opts = {}) {
     }
 
     // targeting + weapons
-    if (inFlight && !rt.parked) {
+    if (inFlight && !held) {
       updateTargeting(S, dt, rt.inputAtt > 0.3);
       stepWeapons(S, dt, true, rt.inputAtt);
     } else {

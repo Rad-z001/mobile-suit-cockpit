@@ -244,3 +244,85 @@ test('town: Circe never spawns near the town, the last wave comes from the east,
   g.step(60 * 8, () => { e.sim.fireT = 99; });
   assert.ok(Math.hypot(e.position.x, e.position.z) > 3200, 'turned away: ' + Math.hypot(e.position.x, e.position.z).toFixed(0));
 });
+
+// ---- review fixes (2026-11-13) ----------------------------------------------------------------------------------------
+async function onPadThenWave(g) {
+  const s = g.state;
+  st(g).stage = 'search';
+  s.player.position.set(C.base[0] - 2000, 600, C.base[1]);
+  g.step(2);
+  const pad = st(g).ob.pad;
+  assert.ok(g.until(() => st(g).stage === 'landed', 60 * 8, (q) => { q.player.position.set(pad.x, pad.y + SW.cockpitAboveDeck + 20, pad.z); q.player.velocity.set(0, 0, 0); }));
+  for (let i = 0; i < 80 && st(g).stage === 'landed'; i++) { const t = st(g).talk; if (t && t.choices.length) t.sel = t.choices.length - 1; g.press(); }
+  assert.equal(st(g).stage, 'defend');
+}
+
+test('review: a wreck that comes down on the land crashes (no endless disabled state)', async () => {
+  const { groundAt } = await import('../src/sim/terrain.js');
+  const g = game('story3c', { v: 1, chapter: 3 });
+  g.step(2);
+  const s = g.state;
+  for (const e of s.entities) if (e.type === 'gustav') e.alive = false;
+  s.player.position.set(6000, groundAt(s, 6000, 3000) + 400, 3000);
+  s.sim.damagePlayer(5, null);
+  assert.equal(s.phase, 'disabled');
+  assert.ok(g.until(() => s.phase === 'ejected', 60 * 40), 'crashed: ' + s.phase);
+  assert.match(s.mission.message.text, /ground/i);
+  assert.equal(s.mission.result.victory, false);
+});
+
+test('review: the rebels guard the Xi - they leave far Gustavs to it, and their kills are not the player\'s', async () => {
+  const g = game('story3c', { v: 1, chapter: 3, kills: 0 });
+  g.step(2);
+  const s = g.state;
+  await onPadThenWave(g);
+  // the wave holds 6 km off: the rebels stay on the Xi and do not fire
+  const wave = living(s, st(g).ob.waveIds);
+  const far = (q) => { for (const e of wave) if (e.alive) { e.position.copy(q.player.position).add(new THREE.Vector3(6000, 400, 0)); e.velocity.set(0, 0, 0); e.sim.fireT = 99; e.sim.missileT = 99; } };
+  const fired0 = g.seen.filter((t) => t === 'allyFire').length;
+  g.step(60 * 10, far);
+  assert.equal(g.seen.filter((t) => t === 'allyFire').length, fired0, 'no rebel fire at Gustavs far from the Xi');
+  assert.equal(living(s, st(g).ob.waveIds).length, C.waveCount);
+  // one comes close: the rebels engage, and a rebel kill does not count as the player's
+  const hits0 = s.sim.hits, kills0 = s.mission.kills;
+  const e = wave[0];
+  g.step(60 * 40, (q) => { far(q); if (e.alive) { e.position.copy(q.player.position).add(new THREE.Vector3(1200, 200, 0)); e.velocity.set(0, 0, 0); e.sim.fireT = 99; e.sim.missileT = 99; } });
+  assert.ok(g.seen.includes('allyFire'), 'they engage a close one');
+  assert.equal(s.sim.hits, hits0, 'rebel hits are not the player\'s hits');
+  if (!e.alive) { assert.ok(g.seen.includes('allyKill')); assert.equal(s.mission.kills, kills0, 'nor their kills'); }
+});
+
+test('review: no shooting while the Xi is lifted out of the hold; PULL UP warns before a cliff but not on a hover descent', async () => {
+  const { groundAt } = await import('../src/sim/terrain.js');
+  const g = game('story3');
+  g.step(2);
+  walkToXi(g);
+  coldStart(g);
+  const s = g.state;
+  let fired = 0;
+  g.until(() => st(g).stage !== 'launch', 60 * 12, (q) => { q.input.triggerFull = true; });
+  s.input.triggerFull = false;
+  fired = g.seen.filter((t) => t === 'rifleFire').length;
+  assert.equal(fired, 0, 'weapons safe in the hold');
+  // flight form, level, toward the escarpment: PULL UP before the first scrape
+  const p = s.player;
+  p.position.set(1500, groundAt(s, 1500, 3500) + 150, 3500);
+  p.flightMode = 'minovsky';
+  p.velocity.set(450, 0, 0);
+  p.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+  let warnedFirst = null;
+  for (let i = 0; i < 60 * 12; i++) {
+    g.step(1, (q) => { q.input.moveZ = 0; });
+    if (p.pullUp.active && warnedFirst === null) warnedFirst = 'warn';
+    if (g.seen.includes('groundScrape')) { if (warnedFirst === null) warnedFirst = 'scrape'; break; }
+  }
+  if (g.seen.includes('groundScrape')) assert.equal(warnedFirst, 'warn', 'PULL UP came before the scrape');
+  // hover: a straight descent onto the pad never warns (the ground assist holds it)
+  const h = game('story3c', { v: 1, chapter: 3 });
+  h.step(2);
+  const hp = h.state.player, pad = { x: C.base[0], z: C.base[1] };
+  hp.position.set(pad.x, groundAt(h.state, pad.x, pad.z) + 260, pad.z); hp.velocity.set(0, 0, 0);
+  let warned = false;
+  h.step(60 * 6, (q) => { q.input.moveY = -1; if (q.player.pullUp.active) warned = true; });
+  assert.equal(warned, false);
+});

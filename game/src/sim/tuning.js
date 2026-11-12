@@ -474,9 +474,11 @@ export const OENBILI = {
   spawnClear: 10000,        // m: nothing spawns closer than this to the town
   allies: [[-60, -30], [55, -50], [0, 70]],   // rebel suits parked around the pad (x, z offsets)
   allyFireEvery: [1.8, 3.2],                  // s between shots
-  allyDamage: 70,           // hp per ally beam hit (a Gustav has 260)
-  allyAccuracy: 0.65,       // chance a shot is aimed true (else it goes wide)
+  allyDamage: 30,           // hp per ally beam hit (a Gustav has 260): they support, the Xi does the killing
+  allyAccuracy: 0.5,        // chance a shot is aimed true (else it goes wide)
   allyStandoff: 900,        // m: how close they press an enemy
+  allyGuard: 3500,          // m: they only go after Gustavs this close to the Xi (else they fly escort on its wing)
+  allyRange: 2600,          // m: and only fire inside this range
   victoryDelay: 2.5,
   titleTime: 6,
 };

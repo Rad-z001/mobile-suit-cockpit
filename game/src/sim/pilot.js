@@ -1,4 +1,5 @@
 // Pilot body: felt g-force, blackout, stress, plus sonic boom / barrier / altitude alerts.
+import { hasLand, groundAt, BODY_CLEAR } from './terrain.js';
 import * as THREE from 'three';
 import { GFORCE, BARRIER, ALERTS } from './tuning.js';
 import { G, clamp, lerp, raiseAlert, pushEvent } from './util.js';
@@ -104,7 +105,17 @@ const num0 = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 export function updateAltitudeWarning(S) {
   const p = S.player;
   const vs = p.velocity.y;
-  const tti = vs < -1 ? num0(p.agl, p.altitude) / -vs : Infinity;   // above the ground under the suit (Chapter 3 land)
+  let tti;
+  if (hasLand(S)) {
+    // Chapter 3 land: the first time along the next 3 s of track the suit would meet the ground (a ridge ahead counts);
+    // a hover descent is not a danger (the ground assist stops it), so only flight form warns on sink alone
+    tti = Infinity;
+    const v = p.velocity;
+    for (let t = 0.25; t <= ALERTS.pullUpTti + 1e-6; t += 0.25) {
+      const x = p.position.x + v.x * t, z = p.position.z + v.z * t, y = p.position.y + v.y * t;
+      if (y - BODY_CLEAR <= groundAt(S, x, z) && (p.flightMode !== 'hover' || Math.hypot(v.x, v.z) > 120)) { tti = t; break; }
+    }
+  } else tti = vs < -1 ? num0(p.agl, p.altitude) / -vs : Infinity;
   const pu = p.pullUp;
   const active = S.phase === 'flight' && tti < ALERTS.pullUpTti;
   if (active && !pu.active) pushEvent(S, 'pullUp', { tti });

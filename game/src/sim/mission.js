@@ -62,7 +62,8 @@ export function applyMission(S) {
   rt.missionId = id;
   S.mission.id = id;
   S.world.night = id === 'gawman';
-  S.world.terrain = id === 'oenpeli' ? 'oenbili' : null;                // Chapter 3 has land (sim/terrain.js)
+  const offline = !S.net || S.net.mode === 'offline';
+  S.world.terrain = id === 'oenpeli' && offline ? 'oenbili' : null;     // Chapter 3 has land (sim/terrain.js); never in a room
   if (changed) {
     resetGawman(S);
     S.mission.rescue = null;
@@ -116,7 +117,7 @@ export function updateStartup(S, dt) {
   // CR-013: restart at the Chapter 2 checkpoint: no boarding, no cold start, straight into flight
   if (!net && S.setup && S.setup.mission === 'story2') { beginChapter2(S, { checkpoint: S.setup.checkpoint || null, fresh: true }); return; }
   // Chapter 3: on foot in Seawrack's hold first (the cold start comes after the walk), or RETRY straight into flight
-  if (!net && S.setup && (S.setup.mission === 'story3' || S.setup.mission === 'story3c') && !rt.launchWalkDone) {
+  if (!net && (!S.net || S.net.mode === 'offline') && S.setup && (S.setup.mission === 'story3' || S.setup.mission === 'story3c') && !rt.launchWalkDone) {
     const ck = S.setup.mission === 'story3c';
     beginOenbili(S, { checkpoint: ck ? (S.setup.checkpoint || null) : null, fresh: ck });
     return;
@@ -170,7 +171,7 @@ function beginFlight(S) {
     beginGawman(S);
     return;
   }
-  if (S.story && S.story.chapter === 3) { rt.waveState = 'oenbili'; beginLaunch(S); return; }   // out of the hold
+  if (S.mission.id === 'oenpeli' && S.story && S.story.chapter === 3) { rt.waveState = 'oenbili'; beginLaunch(S); return; }   // out of the hold
   if (isStory(S)) S.story.stage = 'flight';
   rt.waveState = 'prep';
   rt.waveTimer = MISSION.firstWaveDelay;

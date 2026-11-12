@@ -488,7 +488,7 @@ export function createMix(kit) {
   // Chapter 3 (sim/missions/oenbili.js): the waypoint (coast / the rebels' signal / their pad), the signal meter and the
   // landing hold. A 'vague' waypoint (the signal) shows a bearing only: no distance.
   const _wp = { x: 0, y: 0, z: 0 };
-  function drawWaypoint3(ob, projEnt, ga, hooks) {
+  function drawWaypoint3(ob, projEnt, ga, hooks, stage) {
     const w = ob.waypoint;
     if (w) {
       _wp.x = w.x; _wp.z = w.z; _wp.y = (ob.pad && w.label === 'PAD' ? ob.pad.y : 0) + (w.label === 'PAD' ? 30 : 400);
@@ -504,7 +504,7 @@ export function createMix(kit) {
       } else if (hooks) hooks.edge(pr, col, label, ga);
     }
     const L = ob.landing;
-    if (L && L.progress > 0.01) {
+    if (L && stage === 'approach' && L.progress > 0.01) {
       const x0 = CX - 120, y0 = UP(0, 0.52).y;
       ctx.fillStyle = rgba('2,8,12', 0.55 * ga); ctx.fillRect(x0, y0, 240, 10);
       ctx.fillStyle = rgba(GRN, 0.95 * ga); ctx.fillRect(x0, y0, 240 * saturate(L.progress), 10);
@@ -519,7 +519,7 @@ export function createMix(kit) {
       const beat = ln && (ln.stage === 'arrive' || ln.stage === 'talk' || ln.stage === 'ready' || ln.stage === 'aboard');
       const ch3 = st.chapter === 3 && st.ob && !st.talk;
       if (!markerOnly && (beat || ch3) && m.objective && hatchOpenK < 0.05) kit.T(String(m.objective).toUpperCase(), CX, UP(0, 0.64).y, rgba(WHITE, 0.82 * ga), 22, 'center');
-      if (!markerOnly && ch3) drawWaypoint3(st.ob, projEnt, ga, hooks);
+      if (!markerOnly && ch3) drawWaypoint3(st.ob, projEnt, ga, hooks, st.stage);
       return;
     }
     const g = byId.get(r.gawmanId);
