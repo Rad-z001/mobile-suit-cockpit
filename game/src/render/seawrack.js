@@ -538,7 +538,14 @@ export function createSeawrack({ scene, uniforms }) {
     ship.visible = on;
     const pk = (on && Array.isArray(st.pickets)) ? st.pickets : [];
     pickets.forEach((p, i) => { p.g.visible = i < pk.length; });
+    if (U.uHoldBox) U.uHoldBox.value.set(0, 0, 0, 0);
     if (!on) return;
+    // hold two's footprint (inside the coaming) cut out of the sea, so its floor below the waterline shows
+    if (U.uHold && U.uHoldBox) {
+      const swp = st.seawrack;
+      U.uHold.value.set(swp.position.x, swp.position.z, Math.cos(swp.heading), Math.sin(swp.heading));
+      U.uHoldBox.value.set(-HOLD.w, HOLD.w, HOLD.z0, HOLD.z1);
+    }
     const sw = st.seawrack;
     ship.position.set(sw.position.x, sw.position.y, sw.position.z);
     ship.rotation.set(sw.alive ? 0 : Math.min(0.12, sw.sinkT * 0.01), -sw.heading, sw.alive ? 0 : Math.min(0.25, sw.sinkT * 0.02), 'YXZ');

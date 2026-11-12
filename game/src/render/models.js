@@ -77,6 +77,11 @@ export const GUSTAV_COLORS = {
   yellow: 0xbfae78, red: 0xb83a3c, visor: 0xff63b4, visorHalo: 0xff95cc, grey: 0x9aa5b1, greyDark: 0x333840, joint: 0x2f3338,
   white: 0xe8f0f8, gold: 0xc9a85a, black: 0x14161a,
 };
+// Chapter 3: the Oenbili rebels' old Gustav Karls, repainted in faded olive and sand, green visors
+export const REBEL_COLORS = {
+  ...GUSTAV_COLORS,
+  blueA: 0xa59c70, blueB: 0x8e875f, navy: 0x5f6044, navyDeep: 0x47482f, red: 0x9a4a30, visor: 0x7dff9c, visorHalo: 0xb6ffc8,
+};
 // ---- hard-surface helpers (all non-indexed so every flat face keeps its own normal) ----
 const flat = (g) => (g.index ? g.toNonIndexed() : g);
 const gp = (geo, color, ...rest) => part(flat(geo), color, ...rest);
@@ -110,8 +115,8 @@ const Cx = (r, len, seg = 8) => { const g = new THREE.CylinderGeometry(r, r, len
 const Cy = (rt, rb, len, seg = 8) => new THREE.CylinderGeometry(rt, rb, len, seg);
 const mergeFlat = (list) => mergeGeometries(list.map(flat), false);
 
-export function buildGustav() {
-  const C = GUSTAV_COLORS;
+export function buildGustav(palette = GUSTAV_COLORS) {
+  const C = palette;
   const body = [], head = [], gunArm = [], pod = [], thr = [];
   const B_ = (arr, w, h, d, color, x, y, z, rx = 0, ry = 0, rz = 0, c = 0.14) => arr.push(gp(CB(w, h, d, c), color, x, y, z, rx, ry, rz));
   const PLAIN = (arr, w, h, d, color, x, y, z, rx = 0, ry = 0, rz = 0) => arr.push(gp(B(w, h, d), color, x, y, z, rx, ry, rz));

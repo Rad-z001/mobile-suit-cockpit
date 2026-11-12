@@ -253,6 +253,14 @@ export function createState() {
       checkpoint: null,     // what a Chapter 2 restart keeps: { v, chapter: 2, hull, parts {name: hp}, funnel, vulcan,
                             //   flares, minovsky, kills }. The lobby stores it in the browser. Chapter 1 takes one with
                             //   chapter: 1 when the Penelope arrives (restart: setup.mission 'story1p').
+      // ---- Chapter 3 "Oenbili" (sim/missions/oenbili.js writes; null before). chapter 3, stage 'hold' | 'board' (on foot,
+      // aboard.js) | 'cockpit' (cold start in the hold) | 'launch' | 'transit' | 'intercept' | 'search' | 'approach' |
+      // 'landed' (parked on the pad, the leader's talk in story.talk) | 'defend' | 'won'. ----
+      launch: null,         // { t, open 0..1 (hold covers), rise (m up out of the hold), out (clear of the ship), closeT }
+      ob: null,             // { t, pad {x,y,z,r}, interceptIds, waveIds, allyIds (neutral gustav entities flown by the
+                            //   mission, their beams are faction 'player'), signal 0..1, revealed, landing {progress, ready,
+                            //   over, blocked}, waypoint {x, z, label, vague} | null, said, wonT }
+      // Events: 'launch', 'rebelsFound', 'alliesJoin', 'allyFire' {id}, 'chapterEnd' {chapter: 3}.
       // ---- Chapter 1, third wave: the Penelope brings Gawman (sim/missions/lane.js writes; null before) ----
       lane: null,           // { stage 'arrive' | 'talk' | 'ready' (asks the Xi to slow down) | 'falling' (Gawman jumped:
                             //   mission.rescue as in CR-004) | 'aboard' (hatch sealed) | 'duel' (she is hostile, wave 3) |
@@ -420,6 +428,8 @@ export function createState() {
       sunDir: new THREE.Vector3(-0.6, 0.12, -0.78).normalize(), // dusk, constant
       night: false,          // CR-004: moonlit night (gawman mission)
       moonDir: new THREE.Vector3(0.1, 0.62, -0.78).normalize(), // CR-004: high moon ahead, as in the reference
+      terrain: null,         // Chapter 3 (sim): null = open sea everywhere | 'oenbili' = West Arnhem Land (sim/terrain.js);
+                             // render builds the land mesh from the same height function
     },
 
     // Everything in the sky except the player. Sim adds/removes. Each entity:

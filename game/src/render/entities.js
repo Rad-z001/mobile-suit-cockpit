@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { plume, toon, toonOutline } from './shaders.js';
 import { part as gpart, S as gS, Cz as gCz, merge as gmerge } from './models.js';
-import { buildGustav, buildPenelope, buildMissile, outlineGeometry, geoBox, part as mpart, B as mB, GUSTAV, PENELOPE, PENELOPE_FLIGHT } from './models.js';
+import { buildGustav, REBEL_COLORS, buildPenelope, buildMissile, outlineGeometry, geoBox, part as mpart, B as mB, GUSTAV, PENELOPE, PENELOPE_FLIGHT } from './models.js';
 import { Effects } from './fx.js';
 import { getXi, loadXi, makeXiSuit, xiMuzzle } from './xiSuit.js';
 import { MODEL_SCALE, XI_COCKPIT, XI_HEAD_VULCAN } from '../state.js';
@@ -37,6 +37,7 @@ export function createEntities(scene, state, thermalUniform) {
   const missGeo = (f) => { const g = buildMissile(f); return { geo: g, outline: outlineGeometry(g) }; };
   const geos = {
     gustav: shipGeo(buildGustav()),
+    gustavRebel: shipGeo(buildGustav(REBEL_COLORS)),   // Chapter 3 allies (e.paint === 'rebel')
     penelope: shipGeo(buildPenelope('ms')),
     penelopeFlight: null,                      // built on first use (remote Penelope pilot in flight form)
     missile: missGeo(false),
@@ -45,6 +46,7 @@ export function createEntities(scene, state, thermalUniform) {
   };
   const defs = {
     gustav: { ...GUSTAV, scale: GUSTAV.baseScale * MODEL_SCALE, defaultRadius: 10, glint: [1.0, 0.75, 0.5], plumeCol: [[1.0, 0.45, 0.12], [1.0, 0.9, 0.6]] },
+    gustavRebel: { ...GUSTAV, scale: GUSTAV.baseScale * MODEL_SCALE, defaultRadius: 10, glint: [0.5, 1.0, 0.75], plumeCol: [[1.0, 0.45, 0.12], [1.0, 0.9, 0.6]] },
     penelope: { ...PENELOPE, scale: PENELOPE.baseScale * MODEL_SCALE, defaultRadius: 18, glint: [0.7, 0.85, 1.0], plumeCol: [[0.5, 0.35, 1.0], [0.9, 0.95, 1.0]] },
     penelopeFlight: { ...PENELOPE_FLIGHT, scale: PENELOPE_FLIGHT.baseScale * MODEL_SCALE, defaultRadius: 18, glint: [0.7, 0.85, 1.0], plumeCol: [[0.5, 0.35, 1.0], [0.9, 0.95, 1.0]] },
   };
@@ -70,7 +72,7 @@ export function createEntities(scene, state, thermalUniform) {
   plumeGeo.rotateX(Math.PI / 2);          // apex +Y -> +Z
   plumeGeo.translate(0, 0, 0.5);          // base at z=0, apex at z=1
   const plumeMats = {};
-  for (const k of ['gustav', 'penelope', 'penelopeFlight']) {
+  for (const k of ['gustav', 'gustavRebel', 'penelope', 'penelopeFlight']) {
     plumeMats[k] = new THREE.ShaderMaterial({
       uniforms: {
         uTime: timeU,
@@ -87,7 +89,7 @@ export function createEntities(scene, state, thermalUniform) {
   }
   // outline materials: one per type (constant scale)
   const outMats = {};
-  for (const k of ['gustav', 'penelope', 'penelopeFlight', 'missile', 'funnelMissile', 'gawman']) {
+  for (const k of ['gustav', 'gustavRebel', 'penelope', 'penelopeFlight', 'missile', 'funnelMissile', 'gawman']) {
     const sc = defs[k] ? defs[k].scale : k === 'gawman' ? 1 : missScale[k];
     outMats[k] = new THREE.ShaderMaterial({
       uniforms: { uPixAng: pixU, uScale: { value: sc }, uThermal: thermalUniform },
@@ -102,7 +104,7 @@ export function createEntities(scene, state, thermalUniform) {
   const stumpGeo = mpart(mB(1, 1, 1), 0x15171b);
   const stumpOutline = outlineGeometry(stumpGeo);
 
-  const pool = { xi: [], gustav: [], penelope: [], penelopeFlight: [], missile: [], funnelMissile: [], gawman: [] };
+  const pool = { xi: [], gustav: [], gustavRebel: [], penelope: [], penelopeFlight: [], missile: [], funnelMissile: [], gawman: [] };
   const live = new Map();       // id -> entry
   let frame = 0;
   const byId = new Map();       // id -> entity (current frame), for event lookups
@@ -598,7 +600,7 @@ export function createEntities(scene, state, thermalUniform) {
       if (type === 'gustav' || type === 'penelope' || type === 'remote') {
         const remote = type === 'remote';
         if (remote && e.dead) continue;                          // hidden while dead (entry is retired below)
-        const rtype = remote ? (e.suit === 'penelope' ? (e.form === 'flight' ? 'penelopeFlight' : 'penelope') : 'gustav') : type;
+        const rtype = remote ? (e.suit === 'penelope' ? (e.form === 'flight' ? 'penelopeFlight' : 'penelope') : 'gustav') : (type === 'gustav' && e.paint === 'rebel' ? 'gustavRebel' : type);
         let en = live.get(e.id);
         if (!en || en.type !== rtype) {
           if (en) { release(en); live.delete(e.id); }

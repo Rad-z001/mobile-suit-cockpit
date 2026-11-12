@@ -478,6 +478,7 @@ export function createAudio(state) {
         break;
       }
 
+      case 'allyFire':            // Chapter 3: the rebels' old Gustavs firing (same distant beam)
       case 'enemyFire': {
         // Distant, exterior version of the beam. power 1 ~0.9 s, power 0.45 ~0.35 s at half gain.
         if (t - lastEnemyFire < 0.08) break;      // rate limit: one per 80 ms
@@ -599,6 +600,10 @@ export function createAudio(state) {
       case 'seawrackFound':
       case 'strikeCleared':
       case 'landed':
+      case 'launch':              // Chapter 3: out of Seawrack's hold
+      case 'rebelsFound':
+      case 'alliesJoin':
+      case 'chapterEnd':
         squelch();
         break;
       case 'codex':               // CR-014: a Codex entry learned aboard Seawrack

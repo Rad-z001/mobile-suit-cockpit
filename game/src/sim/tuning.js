@@ -444,3 +444,39 @@ export const ABOARD = {
   table: [0, 52.5, 2.8],    // x, z, radius of the map table
   briefRange: 4.6,          // m from the table that starts the briefing
 };
+
+// ---- Story Chapter 3 "Oenbili" (sim/missions/oenbili.js) --------------------------------------------------------------
+// Owner: walk the gantry to the Xi in Seawrack's hold two, launch, fly in to Oenbili (the film's name for Gunbalanya,
+// West Arnhem Land), Gustav Karls over the coast, find the rebel group that calls itself Mafty, land at their pad, talk
+// to their leader, then hold off a last Circe wave with their old suits alongside. Map frame: metres, origin = the
+// town, +x east, -z north. Heights come from sim/terrain.js (flat sea until the land is loaded).
+export const OENBILI = {
+  ship: [-24000, -30000], shipHeading: 2.35,   // Seawrack offshore to the north-west, sailing slowly south-west
+  openTime: 2.4,            // s: hold two's covers swing open
+  riseDelay: 1.5,           // s into the launch before the Xi lifts
+  riseSpeed: 26,            // m/s up out of the hold
+  riseTo: 72,               // m above the cockpit's seat in the hold: clear of the deck, control handed over
+  closeTime: 3,             // s: the covers close behind it
+  coast: [-9000, -15000],   // the waypoint on the coast (the East Alligator's mouth country)
+  interceptRange: 9000,     // m from the coast waypoint: the Circe patrol comes out to meet the Xi
+  interceptCount: 3, interceptSpawnDist: 6000, interceptAlt: 1400,
+  base: [8200, 5200],       // the rebels' hidden pad, in the stone country south-east of town
+  padRadius: 45,            // m
+  revealRange: 4200,        // m: they show themselves (green smoke, radio) inside this range
+  signalRange: 26000,       // m: the signal meter reads from this far
+  landHeight: 55,           // m above the parked cockpit height (pad + SEAWRACK.cockpitAboveDeck)
+  landSpeed: 30,            // m/s
+  landTime: 2.5,            // s held low and slow over the pad
+  chaseRange: 5000,         // m: no landing while a hostile is this close
+  waveCount: 4, waveSpawnDist: 9000, waveAlt: 1600,
+  waveFrom: [26000, 9000],  // the last wave comes in from the east, over the empty escarpment - never past the town
+  townClear: 6000,          // m: Circe's Gustavs are kept at least this far from the town (it is not a battlefield)
+  spawnClear: 10000,        // m: nothing spawns closer than this to the town
+  allies: [[-60, -30], [55, -50], [0, 70]],   // rebel suits parked around the pad (x, z offsets)
+  allyFireEvery: [1.8, 3.2],                  // s between shots
+  allyDamage: 70,           // hp per ally beam hit (a Gustav has 260)
+  allyAccuracy: 0.65,       // chance a shot is aimed true (else it goes wide)
+  allyStandoff: 900,        // m: how close they press an enemy
+  victoryDelay: 2.5,
+  titleTime: 6,
+};

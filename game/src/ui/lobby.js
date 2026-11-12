@@ -26,13 +26,17 @@ const TEAM_NAME = ['TEAM A', 'TEAM B'];
 const MISSIONS = [
   { id: 'story1', name: 'STORY — CHAPTER 1: MIDAIR HANDOVER', desc: 'Start in the airlock of the cargo that carries the Xi. Walk the gangway, start it up, release and fight two waves at dusk. Then the Penelope comes, with one of your own in her hand — then Chapter 2 follows without a break.' },
   { id: 'story2', name: 'CONTINUE — CHAPTER 2: RETURN TO SEAWRACK', desc: 'From the checkpoint: fly home to Seawrack past three radar pickets. Stay low inside their radar circles, never lead the enemy to the ship, then report to Command aboard.', needsCheckpoint: true },
-  // CR-014: the Gawman retrieval mission is Chapter 3, unlocked by the briefing aboard Seawrack
-  { id: 'gawman', name: 'CHAPTER 3: GAWMAN RETRIEVAL', desc: 'Night. Circe moves Gawman on a carrier escorted by the Penelope. When it is close he goes over the side: open the hatch [H] and match his fall.', needsFlag: 'ironCoffin.unlock3' },
+  // Chapter 3 "Oenbili", unlocked by the briefing aboard Seawrack (Gawman now comes home in Chapter 1)
+  { id: 'story3', name: 'CHAPTER 3: OENBILI', desc: 'Walk the gantry in Seawrack\'s hold to the Xi, launch, and fly in to Oenbili in the far north of Australia. Get past the Circe patrol on the coast, find the rebels who call themselves Mafty, land at their hidden pad — and defend it with them.', needsFlag: 'ironCoffin.unlock3' },
 ];
 const HIDDEN_MISSIONS = [
   { id: 'waves', name: 'INTERCEPT', desc: '3 waves at dusk' },
   // RETRY after Chapter 1 failed once the Penelope had arrived: restarts there (sim/missions/lane.js, chapter 1 checkpoint)
   { id: 'story1p', name: 'STORY — CHAPTER 1: THE PENELOPE', desc: 'From the checkpoint: the Penelope arrives with Gawman.' },
+  // RETRY after Chapter 3 failed: restarts with the Xi just out of Seawrack's hold (chapter 3 checkpoint)
+  { id: 'story3c', name: 'CHAPTER 3: OENBILI', desc: 'From the checkpoint: just out of the hold.' },
+  // the old night retrieval (its story now happens in Chapter 1); '#mission=gawman' still starts it
+  { id: 'gawman', name: 'GAWMAN RETRIEVAL', desc: 'Night. Circe moves Gawman on a carrier escorted by the Penelope. When it is close he goes over the side: open the hatch [H] and match his fall.' },
 ];
 const hasFlag = (k) => { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } };
 const setFlag = (k) => { try { localStorage.setItem(k, '1'); } catch (e) { /* storage blocked */ } };
@@ -45,6 +49,7 @@ const MISSION_BY_ID = Object.fromEntries([...MISSIONS, ...HIDDEN_MISSIONS].map((
 const MISSION_KEY = 'ironCoffin.mission';
 const CHECKPOINT_KEY = 'ironCoffin.checkpoint.ch2';
 const CHECKPOINT1_KEY = 'ironCoffin.checkpoint.ch1';   // Chapter 1: when the Penelope arrives
+const CHECKPOINT3_KEY = 'ironCoffin.checkpoint.ch3';   // Chapter 3: just out of the hold
 const FAIL_REASON = {
   sea: 'Gawman was lost to the sea',
   hull: 'Gawman hit the hull — too fast or hatch closed',
@@ -55,7 +60,7 @@ const FAIL_REASON = {
 function loadMission() {
   try {
     const v = localStorage.getItem(MISSION_KEY);
-    return v === 'waves' || v === 'gawman' || v === 'story1' || v === 'story2' || v === 'story1p' ? v : null;
+    return v === 'waves' || v === 'gawman' || v === 'story1' || v === 'story2' || v === 'story1p' || v === 'story3' || v === 'story3c' ? v : null;
   } catch (e) { return null; }
 }
 function saveMission(id) {
@@ -66,7 +71,7 @@ function loadCheckpoint() {
   try { const v = JSON.parse(localStorage.getItem(CHECKPOINT_KEY) || 'null'); return v && v.chapter === 2 ? v : null; } catch (e) { return null; }
 }
 function saveCheckpoint(ck) {
-  const key = ck && ck.chapter === 1 ? CHECKPOINT1_KEY : CHECKPOINT_KEY;
+  const key = ck && ck.chapter === 1 ? CHECKPOINT1_KEY : ck && ck.chapter === 3 ? CHECKPOINT3_KEY : CHECKPOINT_KEY;
   try { localStorage.setItem(key, JSON.stringify(ck)); } catch (e) { /* storage blocked: the checkpoint lasts for this page only */ }
 }
 function loadCheckpoint1() {
@@ -74,9 +79,13 @@ function loadCheckpoint1() {
 }
 let memCheckpoint = null;   // fallback when storage is blocked
 let memCheckpoint1 = null;
+let memCheckpoint3 = null;
+function loadCheckpoint3() {
+  try { const v = JSON.parse(localStorage.getItem(CHECKPOINT3_KEY) || 'null'); return v && v.chapter === 3 ? v : null; } catch (e) { return null; }
+}
 // RETRY and direct links use '#mission=story1', '#mission=story2' (checkpoint), '#mission=gawman' or '#mission=waves'.
 function hashMission() {
-  const m = /(?:^#|&)mission=(waves|gawman|story1p|story1|story2)(?:&|$)/.exec(location.hash || '');
+  const m = /(?:^#|&)mission=(waves|gawman|story1p|story1|story2|story3c|story3)(?:&|$)/.exec(location.hash || '');
   return m ? m[1] : null;
 }
 
@@ -127,6 +136,10 @@ export function createLobby({ state, net, root, board, unboard }) {
   state.setup.mission = pick;
   if (pick === 'story2') state.setup.checkpoint = loadCheckpoint();
   if (pick === 'story1p') state.setup.checkpoint = loadCheckpoint1();
+  if (pick === 'story3c' && !hashPick) pick = 'story3';   // only RETRY restarts out of the hold
+  if (pick === 'story3' && !hashPick && !hasFlag('ironCoffin.unlock3')) pick = 'story1';
+  if (pick !== state.setup.mission) state.setup.mission = pick;
+  if (pick === 'story3c') state.setup.checkpoint = loadCheckpoint3();
   let savedCk = null, savedCodexN = 0, ejectT = 0;
 
   const ui = {
@@ -321,7 +334,7 @@ export function createLobby({ state, net, root, board, unboard }) {
   function pickMission(id) {
     ui.mission = id;
     state.setup.mission = id;
-    state.setup.checkpoint = id === 'story2' ? (loadCheckpoint() || memCheckpoint) : id === 'story1p' ? (loadCheckpoint1() || memCheckpoint1) : null;
+    state.setup.checkpoint = id === 'story2' ? (loadCheckpoint() || memCheckpoint) : id === 'story1p' ? (loadCheckpoint1() || memCheckpoint1) : id === 'story3c' ? (loadCheckpoint3() || memCheckpoint3) : null;
     saveMission(id);
     ui.solo = true;
     disposePreview();
@@ -356,7 +369,7 @@ export function createLobby({ state, net, root, board, unboard }) {
     const ids = allCodex();
     return el('div', { class: 'sec' },
       el('h2', { text: 'CODEX' }),
-      ids.length ? null : el('p', { class: 'note', text: 'Nothing yet. Talk to the crew and read the notices aboard Seawrack at the end of Chapter 2.' }),
+      ids.length ? null : el('p', { class: 'note', text: 'Nothing yet. Talk to the crew and read the notices aboard Seawrack at the end of Chapter 2, and to the people you meet in Chapter 3.' }),
       ...ids.map((id) => el('div', { class: 'card' }, el('div', { class: 'card-name', text: CODEX[id].title.toUpperCase() }), el('div', { class: 'lbl', text: CODEX[id].text }))),
       el('div', { class: 'row-actions' },
         el('button', { 'data-fk': 'back', text: 'BACK', onclick: () => { ui.view = 'solo'; refresh(); } })));
@@ -388,15 +401,17 @@ export function createLobby({ state, net, root, board, unboard }) {
       typeof r.detections === 'number' ? `TIMES DETECTED ${r.detections}` : null,
       typeof r.shipHull === 'number' ? `SEAWRACK HULL ${Math.round(r.shipHull * 100)}%` : null,
     ].filter(Boolean).join('  |  ');
-    const head = e.victory ? (e.mission === 'story1' || e.mission === 'story1p' ? 'CHAPTER 1 COMPLETE' : e.mission === 'story2' ? 'CHAPTER 2 COMPLETE' : e.mission === 'gawman' ? 'CHAPTER 3 COMPLETE' : 'MISSION COMPLETE') : 'MISSION FAILED';
+    const head = e.victory ? (e.mission === 'story1' || e.mission === 'story1p' ? 'CHAPTER 1 COMPLETE' : e.mission === 'story2' ? 'CHAPTER 2 COMPLETE' : e.mission === 'story3' || e.mission === 'story3c' ? 'CHAPTER 3 COMPLETE' : 'MISSION COMPLETE') : 'MISSION FAILED';
     const ch3 = e.victory && e.mission === 'story2' && state.story && state.story.unlock === 3;
     return el('div', { class: 'sec' },
       el('div', { class: 'lbl', text: m.name }),
       el('div', { class: 'headline', text: head }),
-      ch3 ? el('p', { class: 'note', text: `Chapter 3 unlocked: Gawman Retrieval.  Codex: ${allCodex().length} entries.` }) : null,
-      ch3 ? el('div', { class: 'row-actions' }, el('button', { class: 'big go', 'data-fk': 'ch3', text: '[ CHAPTER 3 ]', onclick: () => { location.hash = '#mission=gawman'; location.reload(); } })) : null,
+      ch3 ? el('p', { class: 'note', text: `Chapter 3 unlocked: Oenbili.  Codex: ${allCodex().length} entries.` }) : null,
+      ch3 ? el('div', { class: 'row-actions' }, el('button', { class: 'big go', 'data-fk': 'ch3', text: '[ CHAPTER 3 ]', onclick: () => { location.hash = '#mission=story3'; location.reload(); } })) : null,
+      e.victory && (e.mission === 'story3' || e.mission === 'story3c') ? el('p', { class: 'note', text: `The Oenbili rebels fly with Mafty now. More to come.  Codex: ${allCodex().length} entries.` }) : null,
       !e.victory && e.mission === 'story2' ? el('p', { class: 'lbl', text: 'RETRY restarts at the Chapter 2 checkpoint.' }) : null,
       !e.victory && e.mission === 'story1p' ? el('p', { class: 'lbl', text: 'RETRY restarts when the Penelope arrives.' }) : null,
+      !e.victory && e.mission === 'story3c' ? el('p', { class: 'lbl', text: 'RETRY restarts just out of Seawrack\'s hold.' }) : null,
       reason ? el('p', { class: 'err', role: 'status', text: reason }) : null,
       stats ? el('p', { class: 'lbl', text: stats }) : null,
       el('div', { class: 'row-actions' },
@@ -637,7 +652,7 @@ export function createLobby({ state, net, root, board, unboard }) {
       syncMode();
       // CR-013: keep the Chapter 2 checkpoint the sim took (Chapter 1 -> 2 hand-over, or a checkpoint restart)
       const ck = state.story && state.story.checkpoint;
-      if (ck && ck !== savedCk) { savedCk = ck; if (ck.chapter === 1) memCheckpoint1 = ck; else memCheckpoint = ck; saveCheckpoint(ck); }
+      if (ck && ck !== savedCk) { savedCk = ck; if (ck.chapter === 1) memCheckpoint1 = ck; else if (ck.chapter === 3) memCheckpoint3 = ck; else memCheckpoint = ck; saveCheckpoint(ck); }
       // CR-014: Chapter 3 unlock and the Codex
       if (state.story && state.story.unlock === 3 && !memFlags.has('ironCoffin.unlock3')) { memFlags.add('ironCoffin.unlock3'); setFlag('ironCoffin.unlock3'); }
       const cx = state.story && state.story.codex;
@@ -653,7 +668,8 @@ export function createLobby({ state, net, root, board, unboard }) {
         // CR-013: once Chapter 2 has begun, the run is 'story2' (RETRY restarts at its checkpoint); once the Penelope has
         // arrived in Chapter 1, 'story1p' (RETRY restarts there).
         const st = state.story || {};
-        const run = st.chapter === 2 ? 'story2' : st.chapter === 1 && st.lane ? 'story1p' : ui.mission === 'story1' ? 'story1' : (mission.id || ui.mission);
+        // Chapter 3: before the Xi is out of the hold the run is 'story3' (start over), afterwards 'story3c' (its checkpoint).
+        const run = st.chapter === 3 ? (st.checkpoint && st.checkpoint.chapter === 3 ? 'story3c' : 'story3') : st.chapter === 2 ? 'story2' : st.chapter === 1 && st.lane ? 'story1p' : ui.mission === 'story1' ? 'story1' : (mission.id || ui.mission);
         const result = { ...(mission.result || {}) };
         if (state.phase === 'ejected' && !result.reason) result.reason = 'ejected';
         ui.end = { victory: state.phase === 'victory', mission: run, result };

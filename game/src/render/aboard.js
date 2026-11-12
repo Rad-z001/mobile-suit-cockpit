@@ -379,6 +379,16 @@ export function createAboard({ state, world, monitor, seawrack }) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, W, H);
     const st = state.story || {}, m = state.mission || {};
+    if (api.overlayOnly && !api.active) {              // Chapter 3 seated talk: the panel and the toast only
+      if (st.talk) drawTalk(st.talk);
+      if (st.codexNew && CODEX[st.codexNew.id]) {
+        const a = saturate(st.codexNew.t / 0.6) * saturate((4 - st.codexNew.t) / 0.3);
+        g.fillStyle = col('4,10,18', 0.8 * a); g.fillRect(W - 420, 70, 390, 64);
+        T('CODEX UPDATED', W - 400, 96, GRN, a, 15, 'left', 600);
+        T(CODEX[st.codexNew.id].title.toUpperCase(), W - 400, 122, CWH, a, 19, 'left', 500);
+      }
+      return;
+    }
     if (st.stage === 'hold' && num(st.t, 0) < 7) {
       const a = saturate((num(st.t, 0) - 0.6) / 0.8) * saturate((7 - num(st.t, 0)) / 0.8);
       T('CHAPTER 3', W / 2, 150, AMB, a, 20, 'center', 500); T('OENBILI', W / 2, 196, CWH, a, 40, 'center', 500);
@@ -429,6 +439,8 @@ export function createAboard({ state, world, monitor, seawrack }) {
     const on = state.phase === 'aboard' && st.seawrack && isVec(st.seawrack.position) && st.walk;
     tNow += dt;
     api.active = !!on;
+    // Chapter 3, seated on the rebels' pad: only the talk panel and the Codex toast over the cockpit (no camera change)
+    api.overlayOnly = !on && st.chapter === 3 && state.phase === 'flight' && !!(st.talk || st.codexNew);
     // Chapter 3: from the cockpit (cold start, then the launch until the Xi is out) the hold set stays drawn around it
     const launch = st.launch || null;
     const holdView = !on && st.chapter === 3 && st.seawrack && isVec(st.seawrack.position) &&
@@ -450,6 +462,7 @@ export function createAboard({ state, world, monitor, seawrack }) {
     if (!on) {
       if (overridden && seawrack && seawrack.setOutline) seawrack.setOutline(true);
       if (overridden) { overridden = false; wc.near = 1; wc.updateProjectionMatrix(); }
+      if (st.chapter === 3 && launch && seawrack && seawrack.setHold) seawrack.setHold(num(launch.open, 0));   // closing behind
       return;
     }
     ensurePeople(st);
@@ -524,7 +537,7 @@ export function createAboard({ state, world, monitor, seawrack }) {
   }
 
   function render(renderer, dt) {
-    if (!api.active) { hudCleared = true; return; }
+    if (!api.active && !api.overlayOnly) { hudCleared = true; return; }
     drawAcc += dt;
     if (hudCleared || drawAcc >= 1 / 30 || !(dt > 0)) { drawAcc = 0; hudCleared = false; drawOverlay(); tex.needsUpdate = true; }
     renderer.clearDepth();

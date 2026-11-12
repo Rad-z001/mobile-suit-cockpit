@@ -485,6 +485,31 @@ export function createMix(kit) {
       arrowGlyph(x0 + 176 - 17, y - 7, dir, 9 + Math.min(10, mag * 0.5), c, (big ? 1 : 0.6) * k);
     }
   }
+  // Chapter 3 (sim/missions/oenbili.js): the waypoint (coast / the rebels' signal / their pad), the signal meter and the
+  // landing hold. A 'vague' waypoint (the signal) shows a bearing only: no distance.
+  const _wp = { x: 0, y: 0, z: 0 };
+  function drawWaypoint3(ob, projEnt, ga, hooks) {
+    const w = ob.waypoint;
+    if (w) {
+      _wp.x = w.x; _wp.z = w.z; _wp.y = (ob.pad && w.label === 'PAD' ? ob.pad.y : 0) + (w.label === 'PAD' ? 30 : 400);
+      const pr = projEnt(_wp);
+      const label = w.vague ? `${w.label} ${Math.round(num(ob.signal, 0) * 100)}%` : `${w.label} ${kit.fmt(pr.dist)} M`;
+      const col = w.label === 'PAD' ? GRN : w.vague ? AMB : '120,225,255';
+      if (pr.vis) {
+        const t = track('wp3', pr.x, pr.y), s = 16;
+        ctx.beginPath(); ctx.moveTo(t.x, t.y - s); ctx.lineTo(t.x + s, t.y); ctx.lineTo(t.x, t.y + s); ctx.lineTo(t.x - s, t.y); ctx.closePath();
+        st(rgba(col, 0.95 * ga), 2.6);
+        if (w.vague) { ctx.beginPath(); ctx.arc(t.x, t.y, s * (1.6 + 0.5 * Math.sin(time * 4)), 0, 6.2832); st(rgba(col, 0.35 * ga), 1.4); }
+        kit.T(label, t.x, t.y + s + 26, rgba(col, 0.95 * ga), 20, 'center', 500);
+      } else if (hooks) hooks.edge(pr, col, label, ga);
+    }
+    const L = ob.landing;
+    if (L && L.progress > 0.01) {
+      const x0 = CX - 120, y0 = UP(0, 0.52).y;
+      ctx.fillStyle = rgba('2,8,12', 0.55 * ga); ctx.fillRect(x0, y0, 240, 10);
+      ctx.fillStyle = rgba(GRN, 0.95 * ga); ctx.fillRect(x0, y0, 240 * saturate(L.progress), 10);
+    }
+  }
   function drawRescue(p, byId, projEnt, hatchOpenK, ga, ax, hooks, markerOnly) {
     const m = state.mission || {};
     const r = m.rescue;
@@ -492,7 +517,9 @@ export function createMix(kit) {
       // story beats without a rescue readout yet (Chapter 1 before the jump): their objective still needs a line
       const st = state.story || {}, ln = st.lane;
       const beat = ln && (ln.stage === 'arrive' || ln.stage === 'talk' || ln.stage === 'ready' || ln.stage === 'aboard');
-      if (!markerOnly && beat && m.objective && hatchOpenK < 0.05) kit.T(String(m.objective).toUpperCase(), CX, UP(0, 0.64).y, rgba(WHITE, 0.82 * ga), 22, 'center');
+      const ch3 = st.chapter === 3 && st.ob && !st.talk;
+      if (!markerOnly && (beat || ch3) && m.objective && hatchOpenK < 0.05) kit.T(String(m.objective).toUpperCase(), CX, UP(0, 0.64).y, rgba(WHITE, 0.82 * ga), 22, 'center');
+      if (!markerOnly && ch3) drawWaypoint3(st.ob, projEnt, ga, hooks);
       return;
     }
     const g = byId.get(r.gawmanId);

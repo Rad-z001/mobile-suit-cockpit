@@ -148,6 +148,10 @@ export const ocean = {
     uniform float uDeckY, uDeckCover, uDeckSeed;   // lower cloud deck (same field as the cloud sheets)
     uniform vec2 uDeckWind;
     uniform float uLowQ;     // 1 = low quality tier: no cloud reflection tap, 3-octave foam
+    uniform vec4 uHold;      // Seawrack's hold two cut out of the sea: ship x, z, cos(heading), sin(heading)
+    uniform vec4 uHoldBox;   // its box in the ship's frame: x0, x1, z0, z1 (render/seawrack.js); off when x0 >= x1
+    uniform sampler2D uLand; // Chapter 3: 1 where land stands above the water (render/land.js), +-uLandHalf m
+    uniform float uLandOn, uLandHalf;
     ${NOISE}
     ${CLOUDF}
     ${SKY}
@@ -159,6 +163,17 @@ export const ocean = {
       h += sin(ph) * slope / k * f;
     }
     void main(){
+      // Chapter 3: no sea where the land stands above it (the flat coast would z-fight with it at range)
+      if (uLandOn > 0.5) {
+        vec2 lu = vWorld.xz / (2.0 * uLandHalf) + 0.5;
+        if (lu.x > 0.0 && lu.x < 1.0 && lu.y > 0.0 && lu.y < 1.0 && texture2D(uLand, lu).r > 0.5) discard;
+      }
+      // the hold's floor lies below the waterline: inside the hull the sea must not be drawn over it
+      if (uHoldBox.x < uHoldBox.y) {
+        vec2 hd = vWorld.xz - uHold.xy;
+        float lx = hd.x * uHold.z + hd.y * uHold.w, lz = -hd.x * uHold.w + hd.y * uHold.z;
+        if (lx > uHoldBox.x && lx < uHoldBox.y && lz > uHoldBox.z && lz < uHoldBox.w) discard;
+      }
       vec3 toP = vWorld - uCam;
       float dist = length(toP);
       vec3 V = toP / dist;

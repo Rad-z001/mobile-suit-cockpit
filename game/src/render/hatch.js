@@ -197,7 +197,8 @@ export function createHatch(scene, state) {
     maskU.uAlpha.value = smoothstep(0.0, 0.3, door);
     // story cold start: the pilot sits in the Xi inside the cargo, so the hatch looks out on the cargo bay, not the crate room
     const story = !!(state.story && state.story.chapter === 1 && state.story.stage === 'cockpit') && bay.children.length > 0;
-    container.visible = startup && door > 0.004 && !story;
+    const ch3 = !!(state.story && state.story.chapter === 3);   // Chapter 3: the hold set is real geometry in the world
+    container.visible = startup && door > 0.004 && !story && !ch3;
     if (container.visible) { const f = smoothstep(0.004, 0.3, door); contU.uLit.value = f; }
     bay.visible = startup && door > 0.004 && story;
     if (bay.visible) bayU.uLit.value = smoothstep(0.004, 0.3, door);

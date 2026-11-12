@@ -97,12 +97,14 @@ export function updateSonicAndBarrier(S, dt) {
   if (b.active && b.integrity < 0.25) raiseAlert(S, 'barrierlow', 'BARRIER INTEGRITY LOW', 'caution', 0.5);
 }
 
+const num0 = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
 // CR-002 item 16: time to impact with the sea along the velocity (altitude / sink rate). Under 3 s: PULL UP.
 // A steady hover has no sink rate, so it never warns. The crash itself stays fatal (seaImpact).
 export function updateAltitudeWarning(S) {
   const p = S.player;
   const vs = p.velocity.y;
-  const tti = vs < -1 ? p.altitude / -vs : Infinity;
+  const tti = vs < -1 ? num0(p.agl, p.altitude) / -vs : Infinity;   // above the ground under the suit (Chapter 3 land)
   const pu = p.pullUp;
   const active = S.phase === 'flight' && tti < ALERTS.pullUpTti;
   if (active && !pu.active) pushEvent(S, 'pullUp', { tti });

@@ -1,4 +1,5 @@
 // Projectiles: beams, tracers, missiles, funnels, flares. Movement, homing, collisions.
+import { hasLand, groundAt } from './terrain.js';
 import * as THREE from 'three';
 import { ENEMY, DAMAGE, WEAPONS, ENEMY_PARTS } from './tuning.js';
 import {
@@ -136,6 +137,7 @@ export function stepProjectiles(S, dt) {
   const ships = rt.ships;
   const targets = rt.targets;
   const hostile = S.phase === 'flight' || S.phase === 'disabled';
+  const land = hasLand(S);
 
   for (let i = 0; i < list.length; i++) {
     const e = list[i];
@@ -156,7 +158,7 @@ export function stepProjectiles(S, dt) {
       else e.alive = false;
       continue;
     }
-    if (e.position.y <= 0) {
+    if (e.position.y <= (land ? groundAt(S, e.position.x, e.position.z) : 0)) {   // Chapter 3: hills stop shots too
       if (type === 'missile' || type === 'funnelMissile') explode(S, e, 1);
       else e.alive = false;
       continue;

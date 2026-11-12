@@ -1412,7 +1412,7 @@ export function createHud(state, cockpit, rig, hatchAnim) {
     mix.drawLadder(1, mix.alt, alt, 25, 500, glitchTxt(fmt(alt)), 'ALT M', 0.3, gh, axf, (mx, a) => {
       const vs = num(p.verticalSpeed, 0);
       kit.T('VS ' + (vs >= 0 ? '+' : '') + Math.round(vs), mx, mix.UP(mx, -0.30).y, Math.abs(vs) > 120 ? rgba(AMB, 0.95 * a) : rgba(base, 0.8 * a), 22, 'center');
-      const agl = alt - num(state.world && state.world.seaLevel, 0);
+      const agl = state.world && state.world.terrain && Number.isFinite(p.agl) ? p.agl : alt - num(state.world && state.world.seaLevel, 0);   // Chapter 3: above the land
       if (agl < 1500) kit.T('RA ' + fmt(agl), mx, mix.UP(mx, -0.37).y, agl < 400 ? rgba(RED, 0.95 * a) : rgba(AMB, 0.9 * a), 22, 'center');
       if (p.barrier && p.barrier.active && fK > 0.05) {
         const bx = mx, by = mix.UP(mx, 0.34).y, r = 14;
@@ -1470,7 +1470,7 @@ export function createHud(state, cockpit, rig, hatchAnim) {
     if (mach >= 0.3 || fK > 0.5) TV('M ' + mach.toFixed(2), LAD_XL, 321, mach >= 1 ? rgba(WARM, 0.95) : rgba(base, 0.8), 10);
     const vs = num(p.verticalSpeed, 0);
     TV((vs >= 0 ? '+' : '') + Math.round(vs), LAD_XR, 321, Math.abs(vs) > 120 ? rgba(AMB, 0.9) : rgba(base, 0.7), 10);
-    const agl = alt - num(state.world && state.world.seaLevel, 0);
+    const agl = state.world && state.world.terrain && Number.isFinite(p.agl) ? p.agl : alt - num(state.world && state.world.seaLevel, 0);   // Chapter 3: above the land
     if (agl < 1500) TV('RA ' + fmt(agl), LAD_XR, 332, agl < 400 ? rgba(RED, 0.95) : rgba(AMB, 0.9), 9);
     // FLIGHT tag + barrier icon + transform progress
     const ft = p.flightTransition || {};

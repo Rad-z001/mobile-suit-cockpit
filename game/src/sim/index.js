@@ -18,7 +18,7 @@ import {
 import { initStartup, updateStartup, updateMission, updateGawman, updateLaneAfter, holdStartAltitude } from './mission.js';
 import { stepHatch } from './hatch.js';
 import { isStory, updateBoarding, syncStory, stepCargo } from './boarding.js';
-import { updateAboard } from './missions/aboard.js';
+import { updateAboard, syncHold } from './missions/aboard.js';
 import { createNetSync } from './netsync.js';
 import { createMatch } from './match.js';
 
@@ -104,12 +104,22 @@ export function createSim(state, opts = {}) {
     updateParts(S);
     // CR-004: cockpit hatch (H works in flight only); the wind effects need the suit to be flying
     stepHatch(S, dt, { input: inFlight, wind: controlled || phase === 'disabled' });
-    if (inFlight) stepTransform(S, dt);
+    if (inFlight && !rt.parked) stepTransform(S, dt);            // Chapter 3: parked on the pad, no form changes
     else resetTransform(S);
     if (controlled) updateSensorInputs(S);
     stepShield(S, dt, inFlight);
 
     stepFlight(S, dt, controlled);
+    if (rt.groundHit > 0 && phase === 'flight') {
+      // Chapter 3 land: a scrape costs hull by how hard it was (a brush is cheap, a dive into a cliff is not)
+      const hard = rt.groundHit;
+      if (hard > 6 && (rt.time - (rt.lastScrape || -9)) > 0.4) {
+        rt.lastScrape = rt.time;
+        damagePlayer(S, Math.min(0.35, 0.0035 * hard), null);
+        pushEvent(S, 'groundScrape', { speed: hard });
+        raiseAlert(S, 'terrain', 'TERRAIN', 'warning', 1.2);
+      }
+    }
     if (rt.seaContact) {
       if (phase === 'flight') {
         // slow touch-and-go is survivable only barely; at speed it is fatal
@@ -139,7 +149,7 @@ export function createSim(state, opts = {}) {
     }
 
     // targeting + weapons
-    if (inFlight) {
+    if (inFlight && !rt.parked) {
       updateTargeting(S, dt, rt.inputAtt > 0.3);
       stepWeapons(S, dt, true, rt.inputAtt);
     } else {
@@ -195,6 +205,7 @@ export function createSim(state, opts = {}) {
         updateStartup(S, dt);
         if (S.phase === 'startup') { stepGlide(S, dt); holdStartAltitude(S); }
         if (S.phase === 'startup' && rt.boardDone && isStory(S)) syncStory(S);   // still clamped in the cargo
+        if (S.phase === 'startup' && S.story.chapter === 3) syncHold(S, dt);      // Chapter 3: still in Seawrack's hold
         updateSectors(S, dt);
         if (rt.netOn) match.hold();
         break;

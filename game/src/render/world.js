@@ -27,6 +27,13 @@ export function createWorld(state) {
     uDeckSeed: { value: 3.1 },
     uDeckWind: { value: new THREE.Vector2(9, 3) },
     uLowQ: { value: 0 },
+    // Seawrack's hold two, cut out of the sea (render/seawrack.js sets them while the ship is shown)
+    uHold: { value: new THREE.Vector4(0, 0, 1, 0) },
+    uHoldBox: { value: new THREE.Vector4(0, 0, 0, 0) },
+    // Chapter 3 land mask (render/land.js)
+    uLand: { value: null },
+    uLandOn: { value: 0 },
+    uLandHalf: { value: 64000 },
   };
 
   // sky ------------------------------------------------------------------------------------------
@@ -52,7 +59,8 @@ export function createWorld(state) {
     seaGeo,
     new THREE.ShaderMaterial({
       uniforms: { uSunDir: U.uSunDir, uThermal: U.uThermal, uNight: U.uNight, uTime: U.uTime, uCam: U.uCam, uPixAng: U.uPixAng,
-        uDeckY: U.uDeckY, uDeckCover: U.uDeckCover, uDeckSeed: U.uDeckSeed, uDeckWind: U.uDeckWind, uLowQ: U.uLowQ },
+        uDeckY: U.uDeckY, uDeckCover: U.uDeckCover, uDeckSeed: U.uDeckSeed, uDeckWind: U.uDeckWind, uLowQ: U.uLowQ,
+        uHold: U.uHold, uHoldBox: U.uHoldBox, uLand: U.uLand, uLandOn: U.uLandOn, uLandHalf: U.uLandHalf },
       vertexShader: ocean.vertex,
       fragmentShader: ocean.fragment,
       polygonOffset: true,

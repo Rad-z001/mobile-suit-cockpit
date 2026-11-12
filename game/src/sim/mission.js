@@ -12,6 +12,7 @@ import { beginChapter2, updateSeawrack } from './missions/seawrack.js';
 import { beginLane, beginLaneCheckpoint, updateLane, updateLaneAfter } from './missions/lane.js';
 
 export { updateLaneAfter };
+import { beginOenbili, beginLaunch, updateOenbili } from './missions/oenbili.js';
 
 export { updateGawman };
 
@@ -27,6 +28,15 @@ const STARTUP_RADIO = [
   'CARGO PISA: Primary diagnostics... reactor is hot. Stay with it.',
   'CARGO PISA: Monitors coming up. Ocean in forty seconds.',
 ];
+
+// Chapter 3: the cold start happens in Seawrack's closed hold two
+const LAUNCH_RADIO = [
+  null,
+  'SEAWRACK: Sealed in? Good. The reactor is yours, Xi.',
+  'SEAWRACK: Diagnostics look clean from up here. Deck crew, clear hold two.',
+  'SEAWRACK: Monitors up. Say the word and we open the covers.',
+];
+const stagePrompt = (S, i) => (i === 3 && S.story && S.story.chapter === 3 ? 'PRESS [ENTER] — OPEN THE HOLD AND LAUNCH' : STARTUP_PROMPTS[i]);
 
 // CR-008 story: the cold start happens inside the cargo (CR-009: no hurry)
 const STORY_RADIO = [
@@ -46,12 +56,13 @@ const _right = new THREE.Vector3();
 export function applyMission(S) {
   const rt = S.sim;
   const pick = S.setup && S.setup.mission;
-  const id = pick === 'gawman' ? 'gawman' : pick === 'story2' ? 'seawrack' : 'waves';   // CR-013: story2 = Chapter 2 checkpoint;
+  const id = pick === 'gawman' ? 'gawman' : pick === 'story2' ? 'seawrack' : (pick === 'story3' || pick === 'story3c') ? 'oenpeli' : 'waves';   // CR-013: story2 = Chapter 2 checkpoint; story3/story3c = Chapter 3 Oenbili;
   // 'story1p' (RETRY when the Penelope arrives) is the Chapter 1 battle: 'waves'
   const changed = rt.missionId !== id;
   rt.missionId = id;
   S.mission.id = id;
   S.world.night = id === 'gawman';
+  S.world.terrain = id === 'oenpeli' ? 'oenbili' : null;                // Chapter 3 has land (sim/terrain.js)
   if (changed) {
     resetGawman(S);
     S.mission.rescue = null;
@@ -82,7 +93,7 @@ function advanceStage(S, net) {
   const next = su.stage + 1;
   su.stage = next;
   pushEvent(S, 'startupStage', { stage: next });
-  const radio = isStory(S) ? STORY_RADIO : STARTUP_RADIO;
+  const radio = isStory(S) ? STORY_RADIO : S.story && S.story.chapter === 3 ? LAUNCH_RADIO : STARTUP_RADIO;
   if (radio[next] && !net) setMessage(S, radio[next], 5);
   if (next >= 4) {
     su.progress = 1;
@@ -104,6 +115,12 @@ export function updateStartup(S, dt) {
   if (su.stage === 0 && !rt.startupClosing && !net) applyMission(S);
   // CR-013: restart at the Chapter 2 checkpoint: no boarding, no cold start, straight into flight
   if (!net && S.setup && S.setup.mission === 'story2') { beginChapter2(S, { checkpoint: S.setup.checkpoint || null, fresh: true }); return; }
+  // Chapter 3: on foot in Seawrack's hold first (the cold start comes after the walk), or RETRY straight into flight
+  if (!net && S.setup && (S.setup.mission === 'story3' || S.setup.mission === 'story3c') && !rt.launchWalkDone) {
+    const ck = S.setup.mission === 'story3c';
+    beginOenbili(S, { checkpoint: ck ? (S.setup.checkpoint || null) : null, fresh: ck });
+    return;
+  }
   // Chapter 1 checkpoint: the Penelope brings Gawman (sim/missions/lane.js)
   if (!net && S.setup && S.setup.mission === 'story1p') { beginLaneCheckpoint(S, S.setup.checkpoint || null); return; }
   // CR-008 story: the chapter opens outside, on the support craft. The cold start begins once the pilot is in the hatch.
@@ -114,7 +131,7 @@ export function updateStartup(S, dt) {
     su.progress = Math.min(1, su.progress + dt * speed / STARTUP.stageTime[su.stage]);
     if (su.progress >= 1) {
       rt.startupBusy = false;
-      S.mission.objective = STARTUP_PROMPTS[su.stage];
+      S.mission.objective = stagePrompt(S, su.stage);
     }
     return;
   }
@@ -153,6 +170,7 @@ function beginFlight(S) {
     beginGawman(S);
     return;
   }
+  if (S.story && S.story.chapter === 3) { rt.waveState = 'oenbili'; beginLaunch(S); return; }   // out of the hold
   if (isStory(S)) S.story.stage = 'flight';
   rt.waveState = 'prep';
   rt.waveTimer = MISSION.firstWaveDelay;
@@ -202,6 +220,7 @@ export function updateMission(S, dt) {
   const m = S.mission;
   if (m.id === 'gawman') return; // updateGawman runs from index.js (it also has to run in victory / failed)
   if (m.id === 'seawrack') { updateSeawrack(S, dt); return; }   // CR-013 story Chapter 2
+  if (m.id === 'oenpeli') { updateOenbili(S, dt); return; }      // story Chapter 3
   const ships = rt.ships;
   m.elapsed += dt;
 

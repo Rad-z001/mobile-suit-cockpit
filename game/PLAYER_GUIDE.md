@@ -12,14 +12,21 @@ You are a pilot sealed inside a mobile suit cockpit. The cockpit is dark, the ar
 
 Single player is the story. The mission pick shows:
 
-- **Story, Chapter 1: Midair handover.** Board the Xi, start it up, release, and fight three waves at dusk. Chapter 2
-  follows straight on, without an end screen.
-- **Chapter 3: Gawman Retrieval.** Appears once you have finished the briefing aboard Seawrack (the Gawman mission below).
+- **Story, Chapter 1: Midair handover.** Board the Xi, start it up, release, fight two waves at dusk, then the Penelope
+  arrives with Gawman (see "Story" below). Chapter 2 follows straight on, without an end screen.
+- **Chapter 3: Oenbili.** Appears once you have finished the briefing aboard Seawrack.
 - **Continue, Chapter 2: Return to Seawrack.** Appears once you have reached Chapter 2. It restarts at the Chapter 2
   checkpoint with the Xi as it was when Chapter 1 ended. The hull is topped up to at least half.
 
 See "Story" below. The older missions are no longer on the menu but still work from a direct link:
-`#mission=waves` (Intercept, three waves at dusk) and `#mission=gawman` (Gawman Retrieval, below).
+`#mission=waves` (Intercept, three waves at dusk) and `#mission=gawman` (the old night Gawman Retrieval, below).
+
+**SPEED SYNC (catching Gawman).** Once Gawman jumps and you are within 1.5 km of him, the flight computer matches your
+speed to his fall by itself. If you are in flight form it drops you to hover first (flight form cannot fly that slowly),
+and you cannot go back to flight form until he is caught. The panel on the right shows SPEED SYNC, a bar while it
+engages and LOCKED once the speeds match. It never flies you to him: you close the gap. Your thrust is counted relative
+to him and gets gentler the closer you are, so holding the stick toward him slows the approach by itself. While the
+hatch is not fully open you cannot push into him.
 
 **How to catch Gawman** (Gawman Retrieval, `#mission=gawman`)
 
@@ -250,7 +257,13 @@ time limit: take as long as you like.
 Walk up to the hex door and it opens. Go down the gangway; the Xi stands in the bay at the end. When you reach the end of
 the gangway you board automatically: you see the cargo from outside for a few seconds, then you are in the cockpit. Run
 the cold start with Enter four times, as in the other missions. After the release you are in the battle, and you can
-watch the empty cargo fall and explode on the sea ahead of you and below. When the last wave is down, Chapter 2 begins.
+watch the empty cargo fall and explode on the sea ahead of you and below.
+
+**The Penelope.** After two waves of Gustav Karls a fast contact comes in: the Penelope, flown by Lane Aim. She takes
+station above and ahead of you and holds her fire: she has Gawman in her hand. Hold your fire too, slow down and open the
+hatch (**H**). Lane lets Gawman go; catch him with SPEED SYNC (above), then close the hatch. A few seconds later Lane
+attacks: shoot the Penelope down and Chapter 2 begins. A checkpoint is saved when she arrives: if Gawman is lost, or you
+are shot down, RETRY starts there, not in the airlock.
 
 ## Story — Chapter 2: Return to Seawrack
 
@@ -291,6 +304,32 @@ You are on foot on the deck, beside the closed hold. Walk to Command: the door u
 - **Codex.** Some answers and notices add an entry to the Codex (a toast says CODEX UPDATED). Reread them from the
   single-player menu: CODEX.
 - **Command.** Walk up to the map table and the briefing starts with Iram Masam and the Captain. Ask what you like; once
-  you have asked "What's next?", "I'm ready." ends Chapter 2 and unlocks **Chapter 3: Gawman Retrieval**. The end screen
+  you have asked "What's next?", "I'm ready." ends Chapter 2 and unlocks **Chapter 3: Oenbili**. The end screen
   shows your time, detections, Seawrack's hull and a CHAPTER 3 button.
+- **Gawman** is home: he waits on deck near where you arrive and has a word about Lane Aim.
+
+## Story — Chapter 3: Oenbili
+
+Oenbili is the film's name for Gunbalanya (formerly Oenpelli), an Aboriginal community in West Arnhem Land, in the far
+north of Australia. The land in the game is an approximation of the real country, compressed to fit: the Van Diemen
+Gulf coast with mangroves and mud flats, floodplains and billabongs, the East Alligator River, and the sandstone
+escarpment and its gorges. The town itself is only ever seen from a distance; the fighting stays away from it.
+
+1. **Hold two.** You start on foot inside Seawrack's closed hold. Walk the gantry (W) to the Xi's open chest hatch. The
+   deck chief and Gawman are by the bulkhead door if you want a word.
+2. **Cold start in the hold.** Enter four times as usual. The last step opens the hold covers and the Xi rises out.
+   A checkpoint is saved here: RETRY restarts just out of the hold.
+3. **To the coast.** Fly south-east to the COAST marker. A Circe patrol of three Gustav Karls comes out to meet you:
+   shoot them down.
+4. **The signal.** Follow the SIGNAL marker into the stone country. It shows a bearing, not a distance; the meter
+   rises as you get closer, and reads weaker if you fly high.
+5. **The pad.** Within a few kilometres the rebels show themselves (green smoke). Land on their pad: come down low over
+   it and slow right down, then hold it there until the bar fills. You cannot land while a hostile is within about 5 km.
+6. **The talk.** Parked on the pad, their leader talks to you over the radio: Enter for the next line, W / S and Enter to
+   pick an answer. While parked the Xi does not fly or fire.
+7. **The last wave.** Four Gustav Karls come in over the stone country from the east. The rebels' three old suits (BILI-1
+   to 3) take off and fight beside you. Shoot the wave down to finish Chapter 3.
+
+The ground is solid here: scraping a hillside costs some hull (a TERRAIN warning) but does not kill you. The hover form's
+ground assist looks ahead along your track, so it climbs before a ridge. Shots stop when they hit the hills.
 

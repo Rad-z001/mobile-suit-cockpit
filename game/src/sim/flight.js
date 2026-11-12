@@ -2,6 +2,7 @@
 // (yaw about body up, pitch about body right, roll about body forward), no pitch limit, no auto-level.
 // Hover = mobile-suit form: body-axis thrust sets a target velocity, no gravity, the free crosshair turns the body
 // once it leaves the deadzone and auto-centres inside it. Flight form = jet: 150 m/s floor, velocity chases the nose.
+import { hasLand, groundAt, groundAhead, waterAt, BODY_CLEAR } from './terrain.js';
 import * as THREE from 'three';
 import { MACH, AIM_MAX_YAW, AIM_MAX_PITCH, AIM_DEADZONE, AUTO_CENTRE_TAU } from '../state.js';
 import { FLIGHT, STARTUP, SHIELD, GAWMAN, BOARD } from './tuning.js';
@@ -39,12 +40,14 @@ export function updateAimDir(p) {
 
 const num = (x) => (Number.isFinite(x) ? x : 0);
 
-function deriveMotion(p) {
+function deriveMotion(p, S) {
   const sp = p.velocity.length();
   p.speed = sp;
   p.mach = sp / MACH;
   p.altitude = p.position.y;
   p.verticalSpeed = p.velocity.y;
+  // Chapter 3 land: height above whatever is under the suit (ground or water); over the open sea it equals altitude
+  p.agl = S && hasLand(S) ? p.position.y - groundAt(S, p.position.x, p.position.z) : p.position.y;
 }
 
 // Startup: the suit falls inside the Cargo Pisa container. No control.
@@ -77,13 +80,15 @@ export function stepGlide(S, dt) {
   p.aim.yaw = 0; p.aim.pitch = 0; p.aim.turning = 0;
   updateAimDir(p);
   deriveAttitude(p);
-  deriveMotion(p);
+  deriveMotion(p, S);
 }
+
+const PARKED_INPUT = { moveX: 0, moveY: 0, moveZ: 0, aimYaw: 0, aimPitch: 0, roll: 0, boost: 0 };
 
 export function stepFlight(S, dt, controlled) {
   const rt = S.sim;
   const p = S.player;
-  const inp = S.input;
+  const inp = rt.parked ? PARKED_INPUT : S.input;   // Chapter 3: parked on the pad (W/S and Enter drive the talk)
   const hover = p.flightMode === 'hover';
   const m = FLIGHT[p.flightMode];
   const v = p.velocity;
@@ -238,7 +243,8 @@ export function stepFlight(S, dt, controlled) {
     const l = _vt.length();
     if (l > lim) _vt.multiplyScalar(lim / l);
     // ground / ceiling assist so holding Ctrl cannot fly the suit into the sea
-    const alt = p.position.y;
+    // over land: height above the highest ground along the next 1.5 s of track, so it climbs before a ridge
+    const alt = hasLand(S) ? p.position.y - groundAhead(S, p.position, v, 1.5, 0.5) : p.position.y;
     if (alt < 400) _vt.y = Math.max(_vt.y, alt < FLIGHT.floorClear ? (FLIGHT.floorClear - alt) * 1.2 : -(alt - FLIGHT.floorClear));
     if (alt > FLIGHT.ceiling - 400) _vt.y = Math.min(_vt.y, FLIGHT.ceiling - alt);
     _dv.copy(_vt).sub(v);
@@ -312,12 +318,23 @@ export function stepFlight(S, dt, controlled) {
 
   p.position.addScaledVector(v, dt);
   rt.seaContact = false;
-  if (p.position.y <= 0.5) {
+  rt.groundHit = 0;
+  if (hasLand(S) && !waterAt(S, p.position.x, p.position.z)) {
+    // Chapter 3 land: the suit scrapes over rock and grass instead of dying - pushed up, the downward speed taken
+    // away, damage by how hard it hit (sim/index.js)
+    const floor = groundAt(S, p.position.x, p.position.z) + BODY_CLEAR;
+    if (p.position.y < floor) {
+      rt.groundHit = Math.max(0, -v.y) + 0.15 * v.length();
+      p.position.y = floor;
+      if (v.y < 0) v.y = 0;
+      v.multiplyScalar(0.92);
+    }
+  } else if (p.position.y <= 0.5) {
     rt.seaContact = true;
     p.position.y = 0.5;
   }
 
   updateAimDir(p);
   deriveAttitude(p);
-  deriveMotion(p);
+  deriveMotion(p, S);
 }

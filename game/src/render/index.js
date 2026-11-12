@@ -16,6 +16,7 @@ import { createHudWrap } from './hudWrap.js';
 import { createChase } from './chase.js';
 import { createBoarding } from './boarding.js';
 import { createSeawrack } from './seawrack.js';
+import { createLand } from './land.js';
 import { createAboard } from './aboard.js';
 import { createMonitorPass } from './monitorPass.js';
 import { clamp, num, isVec, damp, perfCount } from './util.js';
@@ -57,6 +58,7 @@ export function createRenderer(canvas, state) {
   const world = createWorld(state);
   const entities = createEntities(world.scene, state, world.uniforms.uThermal);
   const seawrack = createSeawrack({ scene: world.scene, uniforms: world.uniforms });   // CR-013 story Chapter 2 ships
+  const land = createLand({ scene: world.scene, uniforms: world.uniforms });           // Chapter 3: Oenbili (built lazily)
   const rig = createCameraRig(state);
   const cockpit = createCockpit(state, rig);
   const hatch = createHatch(cockpit.scene, state);
@@ -187,6 +189,7 @@ export function createRenderer(canvas, state) {
     world.update(dt, { pos: view.pos, vel: view.vel, pixAng: view.pixAng, thermal: view.thermal ? 1 : 0 });
     entities.update(dt, view);
     seawrack.update(dt, state);
+    land.update(dt, state);
 
     const nextTargetId = p.target && p.target.id != null ? p.target.id : null;
     if (nextTargetId !== currentTargetId) {
