@@ -1,0 +1,11 @@
+# Dependencies and generated deployment output.
+/game/node_modules/
+/game/dist/
+
+# Local editor and automation state.
+/.claude/
+/.idea/
+/.playwright-mcp/
+
+# Raw research media is not needed to build or publish the game.
+/assets/

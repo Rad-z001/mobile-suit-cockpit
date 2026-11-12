@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iron Coffin — U.C. 0105 Cockpit</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: 'Roboto Mono', Consolas, monospace; }
+  #game { display: block; width: 100vw; height: 100vh; }
+  /* CR-003 lobby (src/ui/lobby.js builds the overlay content). Same look in index.html and artifact-template.html. */
+  #overlay { position: fixed; inset: 0; display: flex; flex-direction: column; background: rgba(0, 3, 6, 0.93); color: #e8f4f6;
+    font-family: "Roboto Mono", Consolas, "Courier New", monospace; text-align: center; overflow-x: hidden; overflow-y: auto;
+    padding: 20px max(16px, env(safe-area-inset-left, 0px)); box-sizing: border-box; }
+  #overlay .lobby { margin: auto; width: 100%; max-width: 760px; display: flex; flex-direction: column; align-items: center; gap: 14px; box-sizing: border-box; }
+  #overlay h1 { font-weight: 300; font-size: clamp(22px, 5vw, 40px); letter-spacing: 0.4em; margin: 0; color: #00e5ff; text-wrap: balance; }
+  #overlay p { color: #8fa3a8; max-width: 640px; line-height: 1.7; font-size: 13px; margin: 0; }
+  #overlay p.note { color: #e8f4f6; }
+  #overlay h2 { font-weight: 400; font-size: 15px; letter-spacing: 0.25em; color: #00e5ff; margin: 0; }
+  #overlay .sec { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; border-top: 1px solid #103040; padding-top: 14px; box-sizing: border-box; }
+  #overlay .sec-inner, #overlay .field, #overlay .settings { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  #overlay .lbl { color: #8fa3a8; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; max-width: none; }
+  #overlay .warn { color: #ffd600; font-size: 12px; }
+  #overlay .err { color: #ff8a80; font-size: 12px; }
+  #overlay .headline { font-size: clamp(20px, 4vw, 30px); letter-spacing: 0.2em; color: #ffd600; }
+  #overlay .code { font-size: clamp(28px, 8vw, 56px); letter-spacing: 0.3em; text-indent: 0.3em; color: #00e5ff; }
+  #overlay .ready { color: #7ef0a0; font-size: 11px; letter-spacing: 0.1em; }
+  #overlay button { font: inherit; font-size: 13px; letter-spacing: 0.15em; color: #00e5ff; background: transparent; border: 1px solid #00e5ff;
+    padding: 10px 18px; min-width: 170px; cursor: pointer; }
+  #overlay button.big { font-size: 16px; padding: 16px 26px; }
+  #overlay button.go { color: #ffd600; border-color: #ffd600; letter-spacing: 0.2em; }
+  #overlay button.sel { background: rgba(0, 229, 255, 0.12); }
+  #overlay button:hover:not(:disabled) { background: rgba(0, 229, 255, 0.08); }
+  #overlay button.go:hover:not(:disabled) { background: rgba(255, 214, 0, 0.08); }
+  #overlay button:disabled { opacity: 0.35; cursor: not-allowed; }
+  #overlay button:focus-visible, #overlay input:focus-visible, #overlay summary:focus-visible { outline: 2px solid #ffd600; outline-offset: 2px; }
+  #overlay input[type=text], #overlay input[type=number] { font: inherit; color: #e8f4f6; background: #02090d; border: 1px solid #1e4a58;
+    padding: 8px 10px; min-width: 0; text-align: center; box-sizing: border-box; }
+  #overlay input[type=text] { width: 240px; max-width: 100%; }
+  #overlay input[type=text]#ic-code { text-transform: uppercase; letter-spacing: 0.3em; width: 180px; }
+  #overlay input[type=number] { width: 84px; }
+  #overlay input[type=radio], #overlay input[type=checkbox] { accent-color: #00e5ff; }
+  #overlay .opts, #overlay .row-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 14px; align-items: center; }
+  #overlay .opt { color: #e8f4f6; font-size: 13px; cursor: pointer; }
+  #overlay .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; width: 100%; }
+  #overlay .card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; width: 100%; min-width: 0; padding: 12px;
+    background: #04121a; border: 1px solid #1e4a58; color: #e8f4f6; box-sizing: border-box; }
+  #overlay .card.sel { border-color: #00e5ff; box-shadow: inset 0 0 0 1px #00e5ff; }
+  #overlay .card.locked { border-style: dashed; opacity: 0.5; cursor: not-allowed; }
+  #overlay .card-name { font-size: 14px; letter-spacing: 0.15em; color: #00e5ff; display: flex; align-items: center; gap: 8px; }
+  #overlay .card.locked .card-name { color: #8fa3a8; }
+  #overlay .card .lbl { text-align: left; text-transform: none; letter-spacing: 0.02em; font-size: 12px; line-height: 1.4; }
+  #overlay .tag { font-size: 10px; letter-spacing: 0.15em; color: #ffd600; border: 1px solid #ffd600; padding: 1px 6px; }
+  #overlay .lock { position: relative; display: inline-block; width: 11px; height: 8px; border: 2px solid currentColor; border-radius: 2px; }
+  #overlay .lock::before { content: ""; position: absolute; left: 1px; top: -7px; width: 5px; height: 5px; border: 2px solid currentColor; border-bottom: 0; border-radius: 5px 5px 0 0; }
+  #overlay .spin { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border: 2px solid #00e5ff; border-right-color: transparent;
+    border-radius: 50%; animation: ic-spin 0.8s linear infinite; vertical-align: middle; }
+  @keyframes ic-spin { to { transform: rotate(360deg); } }
+  #overlay .rows { width: 100%; display: flex; flex-direction: column; }
+  #overlay .row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 14px; padding: 7px 4px;
+    border-bottom: 1px solid #0d2a33; text-align: left; font-size: 13px; box-sizing: border-box; }
+  #overlay .pname { color: #e8f4f6; min-width: 0; overflow-wrap: anywhere; }
+  #overlay .join { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; }
+  #overlay details.controls { width: 100%; max-width: 640px; }
+  #overlay details.controls summary { cursor: pointer; color: #8fa3a8; font-size: 12px; letter-spacing: 0.15em; }
+  #overlay details.controls p { text-align: left; margin-top: 8px; font-size: 12px; }
+  /* CR-005 suit preview: one canvas, sized down on narrow screens (src/render/preview.js draws into it). */
+  #overlay canvas.preview { display: block; width: min(260px, 70vw); height: min(260px, 70vw); margin: 0 auto; }
+  @media (max-width: 560px) {
+    #overlay h1 { letter-spacing: 0.2em; }
+    #overlay .row-actions button, #overlay .sec > button, #overlay .join button { width: 100%; }
+    #overlay input[type=text]#ic-code { width: 100%; }
+    #overlay .join { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) { #overlay .spin { animation-duration: 3s; } }
+  #error { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 40vh; overflow: auto; margin: 0;
+    padding: 12px; background: #300; color: #ff8a80; font-size: 12px; white-space: pre-wrap; z-index: 10; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "./node_modules/three/build/three.module.js",
+    "three/addons/": "./node_modules/three/examples/jsm/",
+    "@trystero-p2p/nostr": "./node_modules/@trystero-p2p/nostr/dist/index.mjs",
+    "@trystero-p2p/core": "./node_modules/@trystero-p2p/core/dist/index.mjs",
+    "@noble/secp256k1": "./node_modules/@noble/secp256k1/index.js"
+} }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="overlay">
+  <!-- Read by src/ui/lobby.js, which builds the overlay content from these two templates. -->
+  <h1>IRON COFFIN</h1>
+  <template id="intro"><p class="note">U.C. 0105 — RX-105 cockpit simulation. You are sealed inside the sphere.</p></template>
+  <template id="controls"><p>Mouse: crosshair (push it outward to turn the suit) &nbsp;·&nbsp; Q/E: roll &nbsp;·&nbsp; hold Alt: look around<br>
+     W/S: forward/back &nbsp;·&nbsp; A/D: strafe &nbsp;·&nbsp; Space: up &nbsp;·&nbsp; Ctrl: down &nbsp;·&nbsp; Shift: boost<br>
+     LMB: beam rifle / saber slash &nbsp;·&nbsp; RMB: vulcan &nbsp;·&nbsp; R: reload E-Pack &nbsp;·&nbsp; 1/2 or wheel: rifle/saber &nbsp;·&nbsp; hold B: shield<br>
+     F: funnel missiles (auto-lock on the target nearest the crosshair) &nbsp;·&nbsp; C: flares<br>
+     G: flight form &nbsp;·&nbsp; N: sensor mode &nbsp;·&nbsp; Z: zoom<br>
+     Enter: start-up switches &nbsp;·&nbsp; H: open/close cockpit hatch &nbsp;·&nbsp; V: outside view (third person) &nbsp;·&nbsp; hold X: manual hatch lever &nbsp;·&nbsp; P: pause<br>
+     Tab: scoreboard (multiplayer)</p></template>
+</div>
+<pre id="error"></pre>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
