@@ -593,9 +593,73 @@ export function createSubMonitors(state) {
     left.tex.needsUpdate = true; perfCount.uploads++;
   }
 
+  // Chapter 3 (sim/missions/oenbili.js): NAV map - the waypoint (coast, the rebels' pad; the signal only as a bearing),
+  // Circe in red, the rebels in green, Seawrack, and the town as a dashed keep-clear ring (it is never a battlefield)
+  function drawNav3(time, p) {
+    const c = left.ctx, st = state.story, ob = st.ob || {}, pos = p.position;
+    c.drawImage(lStatic, 0, 0);
+    const cx = RCX, cy = RCY, r = RR;
+    if (!isVec(pos) || !p.quaternion) { c.drawImage(gS, 0, 0); left.tex.needsUpdate = true; return; }
+    v.set(0, 0, -1).applyQuaternion(p.quaternion);
+    const yaw = Math.atan2(v.x, -v.z), fx = Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = Math.sin(yaw);
+    const w = ob.waypoint;
+    const dW = w ? Math.hypot(w.x - pos.x, w.z - pos.z) : 0;
+    const range = dW > 26000 ? 60000 : dW > 12000 ? 30000 : dW > 5000 ? 15000 : 6000;
+    const k = (r * 0.96) / range;
+    const P2 = (wx, wz) => { const dx = wx - pos.x, dz = wz - pos.z; return [cx + (dx * rx + dz * rz) * k, cy - (dx * fx + dz * fz) * k * SE]; };
+    c.save();
+    c.beginPath(); c.ellipse(cx, cy, r, r * SE, 0, 0, TAU); c.clip();
+    // the town: keep clear
+    { const [tx, ty] = P2(0, 0), tr = 6000 * k;
+      c.setLineDash([8, 7]); c.beginPath(); c.ellipse(tx, ty, tr, tr * SE, 0, 0, TAU); c.strokeStyle = 'rgba(200,210,220,0.45)'; c.lineWidth = 2; c.stroke(); c.setLineDash([]);
+      c.fillStyle = 'rgba(200,210,220,0.6)'; c.fillRect(tx - 4, ty - 4, 8, 8); }
+    if (st.seawrack && isVec(st.seawrack.position)) {
+      const [sx, sy] = P2(st.seawrack.position.x, st.seawrack.position.z);
+      c.save(); c.translate(sx, sy); c.rotate(st.seawrack.heading - yaw);
+      c.beginPath(); c.moveTo(0, -14); c.lineTo(6, -6); c.lineTo(6, 12); c.lineTo(-6, 12); c.lineTo(-6, -6); c.closePath();
+      c.fillStyle = ALLY; c.fill(); c.restore();
+    }
+    if (w && !w.vague) {
+      const [wx, wy] = P2(w.x, w.z);
+      c.beginPath(); c.moveTo(wx, wy - 12); c.lineTo(wx + 12, wy); c.lineTo(wx, wy + 12); c.lineTo(wx - 12, wy); c.closePath();
+      c.strokeStyle = w.label === 'PAD' ? ALLY : BRIGHT; c.lineWidth = 3; c.stroke();
+    }
+    const ents = Array.isArray(state.entities) ? state.entities : [];
+    for (const e of ents) {
+      if (!e || e.alive === false || !isVec(e.position) || e.type !== 'gustav') continue;
+      const [ex, ey] = P2(e.position.x, e.position.z);
+      const friend = e.paint === 'rebel';
+      if (!friend && e.faction !== 'enemy') continue;
+      c.beginPath(); c.moveTo(ex - 7, ey + 5); c.lineTo(ex, ey - 6); c.lineTo(ex + 7, ey + 5); c.strokeStyle = friend ? ALLY : RED; c.lineWidth = 3; c.stroke();
+    }
+    c.restore();
+    // the signal: a bearing only
+    if (w && w.vague) {
+      const a = Math.atan2((w.x - pos.x) * rx + (w.z - pos.z) * rz, (w.x - pos.x) * fx + (w.z - pos.z) * fz);
+      const L = r * 0.8;
+      c.setLineDash([10, 8]); c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.sin(a) * L, cy - Math.cos(a) * L * SE);
+      c.strokeStyle = AMB; c.lineWidth = 3; c.stroke(); c.setLineDash([]);
+    }
+    c.fillStyle = BRIGHT; c.beginPath(); c.moveTo(cx, cy - 11); c.lineTo(cx + 8, cy + 8); c.lineTo(cx, cy + 4); c.lineTo(cx - 8, cy + 8); c.closePath(); c.fill();
+    txt(c, 'NAV', SX0, 76, 38, DIMC, 'left', 500);
+    txt(c, `${range / 1000}K`, SX0 + 92, 76, 40, BRIGHT, 'left', 600);
+    if (w && w.vague) {
+      seg7x(c, SX0 + 4, 406, 58, String(Math.round((ob.signal || 0) * 100)).padStart(5, ' '), AMB);
+      txt(c, '%', SX1, 430, 38, DIMC, 'right', 500);
+      txt(c, 'SIGNAL', SX1, 470, 34, AMB, 'right', 600);
+    } else if (w) {
+      seg7x(c, SX0 + 4, 406, 58, (dW / 1000).toFixed(1).padStart(5, ' '), BRIGHT);
+      txt(c, 'KM', SX1, 430, 38, DIMC, 'right', 500);
+      txt(c, w.label, SX1, 470, 34, w.label === 'PAD' ? ALLY : BRIGHT, 'right', 600);
+    } else txt(c, 'OENBILI', SX1, 470, 34, DIMC, 'right', 600);
+    c.drawImage(gS, 0, 0);
+    left.tex.needsUpdate = true; perfCount.uploads++;
+  }
+
   // LEFT: stylised threat radar + speed
   function drawRadar(time, p, dens) {
     if (state.story && state.story.chapter === 2 && state.story.seawrack) { drawNav(time, p); return; }
+    if (state.story && state.story.chapter === 3 && state.story.ob && state.phase === 'flight' && !(state.story.stage === 'defend' || state.story.stage === 'intercept')) { drawNav3(time, p); return; }
     const c = left.ctx;
     c.drawImage(lStatic, 0, 0);
     const cx = RCX, cy = RCY, r = RR;

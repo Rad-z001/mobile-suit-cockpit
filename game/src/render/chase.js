@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { MODEL_SCALE, XI_MODEL_HEIGHT, XI_COCKPIT } from '../state.js';
 import { clamp, num, isVec, damp, saturate } from './util.js';
+import { groundAt } from '../sim/terrain.js';
 
 const W = 1280, H = 720;
 const SUIT_H = { xi: XI_MODEL_HEIGHT * MODEL_SCALE, gustav: 19 * 1.6 * MODEL_SCALE, penelope: 18 * (22 / 18) * MODEL_SCALE };
@@ -151,6 +152,8 @@ export function createChase({ state, world, entities, monitor, rig }) {
       const w = 6.5, h = Math.min(dt, 0.05), n = Math.max(1, Math.ceil(h / 0.008)), s = h / n;
       for (let i = 0; i < n; i++) { v3.subVectors(posSm, desired); vel.addScaledVector(v3, -w * w * s).addScaledVector(vel, -2 * w * s); posSm.addScaledVector(vel, s); }
     }
+    // Chapter 3 land: the camera never goes into a hillside
+    if (state.world && state.world.terrain) { const gy = groundAt(state, posSm.x, posSm.z) + 8; if (posSm.y < gy) { posSm.y = gy; if (vel.y < 0) vel.y = 0; } }
     // own suit entity (only once the camera has left the cockpit)
     if (k > 0.2) {
       self.suit = suit; self.name = 'YOU';
