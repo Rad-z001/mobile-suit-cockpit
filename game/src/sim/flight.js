@@ -217,13 +217,18 @@ export function stepFlight(S, dt, controlled) {
       .addScaledVector(_r, mx * m.cruise * m.strafeScale)
       .addScaledVector(_u, my * m.cruise * m.vertScale * mods.vertical);
     _vt.multiplyScalar(bl * gain * (0.55 + 0.45 * tf) * sc);
-    // CR-004 gawman tracking assist: near the falling man the no-thrust velocity is HIS velocity and thrust is relative to it
+    // SPEED SYNC (sim/missions/gawman.js): the no-thrust velocity is the falling man's velocity (weight as.w) and thrust is
+    // relative to him, a full stick worth at most as.maxRel m/s (it shrinks with the gap). The cap grows by his speed,
+    // so a full match plus the pilot's thrust is never clipped.
     const as = rt.assist;
-    if (as && as.w > 0) {
-      _vt.multiplyScalar(1 - as.w * (1 - GAWMAN.relScale));
-      _vt.addScaledVector(as.vel, as.w);
+    const syncW = as && as.w > 0 ? as.w : 0;
+    const full = m.cruise * bl * sc;                       // what a full stick asks for (boost included)
+    if (syncW > 0) {
+      const k = Math.min(1, (Number.isFinite(as.maxRel) ? as.maxRel : full) / Math.max(1, full));
+      _vt.multiplyScalar(1 - syncW * (1 - k));
+      _vt.addScaledVector(as.vel, syncW);
     }
-    const lim = m.cruise * bl * sc;
+    const lim = full + (syncW > 0 ? as.vel.length() * syncW : 0);
     const l = _vt.length();
     if (l > lim) _vt.multiplyScalar(lim / l);
     // ground / ceiling assist so holding Ctrl cannot fly the suit into the sea

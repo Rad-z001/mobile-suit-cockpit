@@ -27,6 +27,9 @@ export function createHatch(scene, state) {
     active: false,   // anything of the hatch is on screen
     curve: 0,        // concave edge depth (m at the mouth plane)
     open: false,     // doors are open enough that the tunnel is the front view
+    // the tunnel's far opening in cockpit space (the monitor pass shows the plain world through it: no screen damage,
+    // static or sensor tint on what the pilot sees with their own eyes). far 0 = no opening.
+    far: 0, farX: 0, farY: 0, farHW: TUNNEL.HW, farHH: TUNNEL.HH,
   };
   const group = new THREE.Group();
   scene.add(group);
@@ -183,6 +186,7 @@ export function createHatch(scene, state) {
 
     // 3D -----------------------------------------------------------------------------------------------------------------
     group.visible = door > 0.004;
+    anim.far = 0;
     if (!group.visible) return;
     const startup = phase === 'startup';
     tunnel.scale.z = 0.2 + 0.8 * len;                       // never collapses: the doors close over a short stub, so the reverse of the opening is exact
@@ -200,6 +204,7 @@ export function createHatch(scene, state) {
     tunnelU.uLit.value = startup ? 0.85 : 0.9;
     const w = anim.wind;
     group.position.set(w * 0.004 * Math.sin(ctx.time * 61), w * 0.004 * Math.sin(ctx.time * 53 + 1.3), 0);
+    anim.far = Z0 + LEN * tunnel.scale.z; anim.farX = group.position.x; anim.farY = group.position.y;
   }
 
   return { group, anim, update, onEvent, setBay, uniforms: { hole: holeU, curve: curveU } };

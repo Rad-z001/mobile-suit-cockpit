@@ -451,8 +451,15 @@ export function createMix(kit) {
     UP(xa, 0.02); const x0 = V.x - 205 + 40 * ease(kit.hatchDoor ? kit.hatchDoor() : 0), y0 = V.y;   // panel left edge, right-anchored near the ladder
     UP(xa, 0.30); const ytop = V.y;
     const yTitle = Math.max(ytop, y0 - 96);
-    kit.T('MATCH SPEED', x0 + 88, yTitle, rgba(col, 0.95 * k), 24, 'center', 500);
+    // SPEED SYNC (sim/missions/gawman.js): automatic inside 1.5 km, matches his velocity; the rule fills as it engages
+    const sync = r.sync || 'off', sw = saturate(num(r.syncW, 0));
+    const syncOn = sync !== 'off';
+    const sCol = sync === 'locked' ? GRN : syncOn ? AMB : col;
+    kit.T(syncOn ? 'SPEED SYNC' : 'MATCH SPEED', x0 + 88, yTitle, rgba(syncOn ? sCol : col, 0.95 * k), 24, 'center', 500);
     ctx.beginPath(); ctx.moveTo(x0, yTitle + 8); ctx.lineTo(x0 + 176, yTitle + 8); st(rgba(col, 0.5 * k), 1.4);
+    if (syncOn && sw > 0.01) { ctx.beginPath(); ctx.moveTo(x0, yTitle + 8); ctx.lineTo(x0 + 176 * sw, yTitle + 8); st(rgba(sCol, 0.95 * k), 3.2); }
+    const sTxt = sync === 'locked' ? 'LOCKED — CLOSE IN' : sync === 'engaging' ? `ENGAGING ${Math.round(sw * 100)}%` : sync === 'hover' ? 'DROPPING TO HOVER' : (r.phase === 'falling' ? 'SYNC INSIDE 1.5 KM' : '');
+    if (sTxt) kit.T(sTxt, x0 + 88, yTitle + 38 + 3 * 36, rgba(sCol, (sync === 'hover' && Math.sin(time * 10) < 0 ? 0.45 : 0.95) * k), 18, 'center', 500);
     const v = r.relVel;
     const rows = [
       ['FWD', 'BACK', -num(v.z, 0), 'u', 'd'],

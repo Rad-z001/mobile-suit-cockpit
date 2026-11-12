@@ -513,6 +513,7 @@ export function createAudio(state) {
         break;
 
       case 'lockConfirmed':
+      case 'syncLocked':          // SPEED SYNC matched Gawman's fall (sim/missions/gawman.js)
         if (sample('lock_chime', { bus: 'combat', gain: 0.9 })) break;
         blip('combat', { type: 'sine', freq: 1760, duration: 0.07, gain: 0.08 });
         blip('combat', { type: 'sine', freq: 1760, duration: 0.07, gain: 0.08, delay: 0.1 });

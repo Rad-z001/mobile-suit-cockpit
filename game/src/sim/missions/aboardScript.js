@@ -15,7 +15,10 @@ export const CODEX = {
   xi: { title: 'RX-105 Xi Gundam', text: 'Mafty\'s Gundam. Its built-in Minovsky flight unit lets it fly by itself, transform into a faster form, and outrun anything the Federation fields on Earth. It was delivered in secret, inside a falling cargo container, at night.' },
   gustav: { title: 'Gustav Karl', text: 'The Federation\'s standard mobile suit of this era: heavy, reliable and slow. On Earth it rides a sub-flight sled to fly. Dangerous in numbers and in the hands of a good pilot, but a generation behind the Gundams.' },
   minovsky: { title: 'Minovsky particles', text: 'Particles released by mobile suit reactors that jam radar and long-range guidance. Where they are dense, sensors go blind beyond a few kilometres, so machines close in and fight by sight. Thin them out, and the old radar pickets see far again.' },
-  gawman: { title: 'Gawman Nobile', text: 'One of Mafty\'s pilots, captured by the Federation. Circe is moving him under guard, aboard a carrier escorted by the Penelope. He knows what will happen to him if he stays aboard.' },
+  gawman: { title: 'Gawman Nobile', text: 'One of Mafty\'s pilots, captured by the Federation. Lane Aim brought him to the fight in the Penelope\'s hand and let him go rather than fight with a prisoner in his fist. He fell into the Xi\'s open hatch at a few hundred metres, and he will tell anyone who listens.' },
+  lane: { title: 'Lane Aim', text: 'Circe\'s ace and the Penelope\'s pilot. Young, gifted, and certain he is on the right side. He handed Gawman back over open sea before he fought: he wants to beat Mafty, not win by holding a hostage.' },
+  oenpeli: { title: 'Oenpeli', text: 'Gunbalanya, also called Oenpeli: an Aboriginal community in West Arnhem Land, in the north of Australia, across the East Alligator River from Kakadu. Floodplains and paperbark swamps run up to a high sandstone escarpment. A rebel group has hidden its machines in the rock country outside town and calls itself Mafty. The town has nothing to do with them.' },
+  imitators: { title: 'The other Mafty', text: 'Mafty\'s name travels faster than Mafty does. Small groups across the Earth borrow it for their own fights against the emigration law. Some are bandits. Some are worth bringing in.' },
 };
 
 const said = (n) => (n === 1 ? 'once' : `${n} times`);
@@ -48,6 +51,30 @@ export const PEOPLE = [
       },
       xi: { lines: [{ who: 'DECK CHIEF', text: 'The same people who sold Circe its Penelope built this one. Officially it doesn\'t exist. It came to us inside a cargo that fell out of the sky — you were there.' }], next: 'q' },
       gustav: { lines: [{ who: 'DECK CHIEF', text: 'Honest machines. Heavy, sturdy, slow. They need those sleds to fly at all. One is a nuisance. Five, with a good pilot in the middle, is how people die.' }], next: 'q' },
+    },
+  },
+  {
+    // he came home in the Xi's cockpit (Chapter 1): the first face on deck after the cut
+    id: 'gawman', name: 'GAWMAN NOBILE', area: 'deck', kind: 'npc', look: 'gawman', pos: [3.6, 0, 20.5], yaw: Math.PI * 0.8,
+    start: 'a',
+    nodes: {
+      a: {
+        lines: [
+          { who: 'GAWMAN', text: 'There he is. The man with the softest hatch in the Federation.' },
+          { who: 'GAWMAN', text: 'Two hundred metres of air, and all I could think was: please don\'t let him close it early.' },
+        ],
+        next: 'q',
+      },
+      q: {
+        lines: [{ who: 'GAWMAN', text: 'Go on, ask. I\'ve been locked in a room for a week, I want to talk.' }],
+        choices: [
+          { text: 'Why did Lane let you go?', to: 'lane', codex: 'lane', once: true },
+          { text: 'What did Circe want from you?', to: 'circe', codex: 'gawman', once: true },
+          { text: 'Get some rest, Gawman.', end: true },
+        ],
+      },
+      lane: { lines: [{ who: 'GAWMAN', text: 'He said he doesn\'t fight with a man in his fist. He meant it. That\'s worse than a liar, if you ask me — he\'ll still be out there next time, and he\'ll be better.' }], next: 'q' },
+      circe: { lines: [{ who: 'GAWMAN', text: 'Names. Where the Xi came from. Where this ship sleeps. I gave them the name of a bar that closed ten years ago.' }], next: 'q' },
     },
   },
   {
@@ -125,7 +152,7 @@ export const PEOPLE = [
   {
     id: 'roster', name: 'CREW ROSTER', area: 'corridor', kind: 'sign', pos: [-1.4, 0, 57], yaw: Math.PI / 2,
     start: 'a',
-    nodes: { a: { lines: [{ who: 'CREW ROSTER', text: 'Forty names, handwritten. Six are crossed out. One of them, still on the list, is Gawman Nobile — with "NOT LOST" written next to it.' }] } },
+    nodes: { a: { lines: [{ who: 'CREW ROSTER', text: 'Forty names, handwritten. Six are crossed out. Next to Gawman Nobile someone wrote "NOT LOST" a week ago. Today, in fresh ink: "HOME".' }] } },
   },
   {
     id: 'captain', name: 'CAPTAIN', area: 'command', kind: 'npc', look: 'captain', pos: [-3.5, 0, 50.5], yaw: Math.PI * 0.15,
@@ -157,7 +184,7 @@ export const PEOPLE = [
           { text: 'Remind me who we\'re fighting.', to: 'who', codex: 'mafty', once: true },
           { text: 'Why did the radar matter so much?', to: 'radar', codex: 'seawrack', once: true },
           { text: 'Why do the Gustavs fight so close?', to: 'mino', codex: 'minovsky', once: true },
-          { text: 'What\'s next?', to: 'next', codex: 'gawman', once: true },
+          { text: 'What\'s next?', to: 'next', codex: 'oenpeli', once: true },
           { text: 'I\'m ready.', end: true, finish: true, needs: 'next' },
         ],
       },
@@ -165,9 +192,11 @@ export const PEOPLE = [
       radar: { lines: [(c) => ({ who: 'CAPTAIN', text: `Because this hull is all there is. Find Seawrack and you find the people in the holds. Their pickets saw you ${c.detections === 0 ? 'not once' : said(c.detections)} today.${c.found ? ' And they found us anyway.' : ''}` })], next: 'q' },
       mino: { lines: [{ who: 'CAPTAIN', text: 'Minovsky particles. Every reactor out there sheds them, and they blind radar beyond a few kilometres. When the air is thick with them, you close in and shoot what you can see. Out here the air was thin — that\'s why the pickets were a threat.' }], next: 'q' },
       next: { lines: [
-        { who: 'IRAM', text: 'Gawman. Circe has him, and tomorrow night they move him — on a carrier, with the Penelope flying escort.' },
-        { who: 'IRAM', text: 'He got word to us. When the carrier is close enough, he goes over the side. No parachute, a flashlight, and you underneath him with the hatch open.' },
-      ], next: 'q' },
+        { who: 'IRAM', text: 'Gawman is home, and Lane Aim is in the sea. That is more than I hoped for in one day.' },
+        { who: 'IRAM', text: 'Next: Australia. In the rock country outside Oenpeli, in Arnhem Land, there is a group that calls itself Mafty.' },
+        { who: 'IRAM', text: 'They are not us. But they have old suits, a pad hidden in the escarpment, and the same enemy. The real Mafty needs them — find their base and bring them in.' },
+        { who: 'CAPTAIN', text: 'Circe patrols that coast. Expect Gustav Karls between you and them.' },
+      ], codex: 'imitators', next: 'q' },
     },
   },
 ];

@@ -13,8 +13,9 @@
 import * as THREE from 'three';
 import { MODEL_SCALE } from '../../state.js';
 import { ENEMY, ENEMY_PARTS, GAWMAN } from '../tuning.js';
-import { G, makeEntity, pushEvent, setMessage, smoothstep, orientShip, forwardOf } from '../util.js';
+import { G, makeEntity, pushEvent, setMessage, orientShip, forwardOf } from '../util.js';
 import { endMission } from '../damage.js';
+import { requestHover } from '../transform.js';
 
 const _f = new THREE.Vector3();
 const _r = new THREE.Vector3();
@@ -33,7 +34,7 @@ export function makeRescue() {
     phase: 'approach', penelopeId: null, gawmanId: null,
     distance: 0, closing: 0, relVel: new THREE.Vector3(), relSpeed: 0, catchPoint: new THREE.Vector3(),
     inEnvelope: false, timeToSea: Infinity,
-    assist: 0, catchRadius: GAWMAN.catchRadius, catchSpeed: GAWMAN.catchSpeed, dangerSpeed: GAWMAN.contactSpeed,
+    assist: 0, sync: 'off', syncW: 0, catchRadius: GAWMAN.catchRadius, catchSpeed: GAWMAN.catchSpeed, dangerSpeed: GAWMAN.contactSpeed,
     hint: '',
   };
 }
@@ -51,7 +52,7 @@ export function resetGawman(S) {
   const rt = S.sim;
   for (const e of S.entities) if (e.type === 'gawman' || (e.type === 'penelope' && e.faction === 'neutral')) e.alive = false;
   rt.gm = null;
-  rt.assist = { w: 0, vel: new THREE.Vector3() };
+  rt.assist = { w: 0, vel: new THREE.Vector3(), maxRel: Infinity };
 }
 
 // the flight starts: spawn the carrier 1.5 km ahead (same altitude, along the horizontal heading)
@@ -207,7 +208,7 @@ function fail(S, reason, L) {
   const r = S.mission.rescue;
   r.phase = 'lost';
   r.inEnvelope = false;
-  r.assist = 0;
+  r.assist = 0; r.syncW = 0; r.sync = 'off';
   r.hint = '';
   rt.assist.w = 0;
   S.phase = 'failed';
@@ -249,6 +250,26 @@ export function updateGawman(S, dt) {
     m.objective = 'GAWMAN SAFE';
     setMessage(S, 'PENELOPE: Gawman is safe. Good flying, Xi. Bring him home.', 9999);
   }
+}
+
+// SPEED SYNC: automatic once he has jumped and the catch point is inside GAWMAN.syncRange. A flight-form Xi drops to
+// hover (requestHover); in hover (no transformation running) the strength syncW ramps to 1 over syncEngage s, and the
+// flight model (sim/flight.js) makes his velocity the no-thrust velocity with that weight. It only matches speed - it
+// never steers toward him; the pilot's thrust is relative to him and tops out at max(syncMinRel, syncGain x gap) m/s.
+// r.sync: 'off' (out of range) | 'hover' (waiting for hover form) | 'engaging' | 'locked'.
+function stepSync(S, r, g, dist, dt) {
+  const rt = S.sim, p = S.player;
+  const inRange = dist <= GAWMAN.syncRange;
+  if (inRange && requestHover(S)) pushEvent(S, 'syncHover');
+  const ready = inRange && p.flightMode === 'hover' && p.flightTransition.state === 'idle';
+  r.syncW = ready ? Math.min(1, r.syncW + dt / GAWMAN.syncEngage) : Math.max(0, r.syncW - dt / GAWMAN.syncRelease);
+  const was = r.sync;
+  r.sync = !inRange ? 'off' : !ready ? 'hover' : r.syncW >= 1 ? 'locked' : 'engaging';
+  if (r.sync === 'locked' && was !== 'locked') pushEvent(S, 'syncLocked');
+  rt.assist.w = r.syncW;
+  rt.assist.vel.copy(g.velocity);
+  rt.assist.maxRel = Math.max(GAWMAN.syncMinRel, GAWMAN.syncGain * dist);
+  r.assist = r.syncW;
 }
 
 // The rescue core, every frame once rt.gm exists (the caller advances gm.t, flies the carrier and triggers the jump):
@@ -299,15 +320,10 @@ export function stepRescue(S, dt, L = LINES) {
   }
   if (gm.over || !g || !g.alive) return 'lost';
 
-  // ---- falling: tracking assist, catch, fail ----
+  // ---- falling: SPEED SYNC, catch, fail ----
   const hatch = p.hatch;
   const dist = r.distance;
-  const w = 1 - smoothstep(GAWMAN.assistNear, GAWMAN.assistFar, dist);
-  if (p.flightMode === 'hover' && p.flightTransition.state === 'idle') {
-    rt.assist.w = w;
-    rt.assist.vel.copy(g.velocity);
-  }
-  r.assist = rt.assist.w;
+  stepSync(S, r, g, dist, dt);
   _d.copy(g.position).sub(p.position);
   const dc = _d.length(); // from the suit centre (the hull)
   if (hatch.state === 'open' && r.inEnvelope) {
@@ -315,7 +331,7 @@ export function stepRescue(S, dt, L = LINES) {
     r.phase = 'aboard';
     r.timeToSea = Infinity;
     rt.assist.w = 0;
-    r.assist = 0;
+    r.assist = 0; r.syncW = 0; r.sync = 'off';
     pushEvent(S, 'gawmanCaught');
     m.objective = 'CLOSE THE HATCH';
     setMessage(S, L.caught, 7);
@@ -335,7 +351,8 @@ export function stepRescue(S, dt, L = LINES) {
   m.objective = hatch.state === 'open' ? 'MATCH SPEED — CATCH GAWMAN' : 'OPEN THE HATCH — CATCH GAWMAN';
   let h = '';
   const openish = hatch.state === 'open' || hatch.state === 'opening' || hatch.state === 'unlocking';
-  if (!openish && dist < 700) h = 'OPEN THE HATCH [H]';
+  if (r.sync === 'hover') h = 'SPEED SYNC — DROPPING TO HOVER';
+  else if (!openish && dist < 700) h = 'OPEN THE HATCH [H]';
   else if (hatch.state === 'open' && dist < 120 && r.relSpeed > GAWMAN.contactSpeed) h = 'TOO FAST';
   else if (dist < 350 && r.relSpeed > GAWMAN.catchSpeed && Math.abs(r.relVel.y) >= Math.max(Math.abs(r.relVel.x), Math.abs(r.relVel.z))) h = 'MATCH HIS FALL';
   else if (dist < 350 && r.relSpeed > GAWMAN.catchSpeed) h = 'MATCH SPEED';

@@ -43,6 +43,15 @@ function begin(S, to, forced) {
   if (!forced) pushEvent(S, 'uiClick');
 }
 
+// SPEED SYNC (sim/missions/gawman.js): the flight computer drops a flight-form Xi to hover. No-op unless in flight form
+// and not already transforming; ignores the cooldown (it is not the pilot's request). Returns true if it started.
+export function requestHover(S) {
+  const p = S.player;
+  if (p.flightMode !== 'minovsky' || p.flightTransition.state !== 'idle') return false;
+  begin(S, 'hover', true);
+  return true;
+}
+
 function refuse(S, reason) {
   pushEvent(S, 'flightRefused', { reason });
   raiseAlert(S, 'flightlost', reason, 'warning', 2.5);

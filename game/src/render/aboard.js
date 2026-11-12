@@ -157,7 +157,7 @@ export function createAboard({ state, world, monitor, seawrack }) {
     const red = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.22), glowMat(0xc8202a)); red.position.set(-2.43, D + 1.3, 50); red.rotation.set(0, Math.PI / 2, 0.25); corridorG.add(red);
     const r = plaque('M/V SEAWRACK', ['Bulk carrier', '', 'Cargo: machine parts', 'Owner: Sunda Eastern', 'Freight Lines', '(registered office:', ' an empty lot)'], '#d8e2ea');
     r.position.set(2.44, D + 1.55, 54); r.rotation.y = -Math.PI / 2; corridorG.add(r);
-    const ro = plaque('CREW', ['- - - - - - - - -', '- - - - - - -', '- - - - - - - -', 'GAWMAN NOBILE', '  (NOT LOST)', '- - - - - - -', '- - - - - - - -'], '#efe9dc');
+    const ro = plaque('CREW', ['- - - - - - - - -', '- - - - - - -', '- - - - - - - -', 'GAWMAN NOBILE', '  NOT LOST - HOME', '- - - - - - -', '- - - - - - - -'], '#efe9dc');
     ro.position.set(-2.44, D + 1.55, 57); ro.rotation.y = Math.PI / 2; corridorG.add(ro);
   }
 

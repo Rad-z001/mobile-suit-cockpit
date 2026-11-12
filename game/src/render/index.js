@@ -199,7 +199,7 @@ export function createRenderer(canvas, state) {
     const alerts = Array.isArray(state.alerts) ? state.alerts : [];
     let emergency = state.phase === 'disabled' || (num(p.hull, 1) < 0.25 && state.phase !== 'respawn' && state.phase !== 'matchOver');
     for (let i = 0; i < alerts.length && !emergency && state.phase !== 'respawn'; i++) if (alerts[i] && alerts[i].level === 'warning') emergency = true;
-    const ctx = { time, emergency: emergency ? 1 : 0, aspect, rig, pink: entities.flash.pink, hudDt: cur.hudDt };
+    const ctx = { time, emergency: emergency ? 1 : 0, aspect, rig, pink: entities.flash.pink, hudDt: cur.hudDt, hatch: hatch.anim };
     cockpit.update(dt, ctx);
     hatch.update(dt, ctx);
     if (!outside) { hud.update(dt, ctx); wrap.update(dt, hud.power, renderer); }

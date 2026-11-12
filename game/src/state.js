@@ -463,8 +463,9 @@ export function createState() {
       //     catchPoint: Vector3,            world point in front of the open hatch where he must arrive
       //     inEnvelope: boolean,            distance and relative speed are inside the catch limits now
       //     timeToSea: number }             s until Gawman reaches the sea (Infinity before he jumps)
-      //   CR-004 (sim) extra fields: relSpeed (m/s, |relVel|), assist (0..1 tracking-assist strength: hover form, inside
-      //     260 m the no-thrust velocity becomes his velocity, thrust is relative to him x0.15), catchRadius (6 m),
+      //   CR-004 (sim) extra fields: relSpeed (m/s, |relVel|), assist (= syncW), sync ('off' | 'hover' | 'engaging' |
+      //     'locked': SPEED SYNC, automatic once he has jumped and the catch point is inside 1.5 km; a flight-form Xi drops
+      //     to hover; it matches his velocity only, never steers), syncW (0..1 strength), catchRadius (6 m),
       //     catchSpeed (8 m/s), dangerSpeed (15 m/s), hint (current rescueHint text or ''). distance/closing are measured
       //     from the CATCH POINT (player position + body forward x 7 m) to Gawman (to Penelope before the jump).
       rescue: null,

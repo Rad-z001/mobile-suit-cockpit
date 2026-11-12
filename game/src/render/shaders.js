@@ -643,6 +643,9 @@ export const monitor = {
     uniform vec2 uRes, uTan;
     uniform mat3 uCamRot;
     uniform float uPixAng;
+    uniform vec4 uHatch;     // open hatch: far-opening distance, half width, half height, on (render/hatch.js)
+    uniform vec2 uHatchC;
+    uniform vec3 uEye;
     varying vec2 vUv;
     ${NOISE}
 
@@ -676,6 +679,19 @@ export const monitor = {
       float secF = mod(lon + 0.3926991 + 6.2831853, 6.2831853) / 0.7853982;
       int si = int(min(floor(secF), 7.0));
       float health = uSect[si];
+
+      // ---- the open hatch: this sight line leaves through the tunnel's far opening, so it is the pilot's own eyes, not
+      //      the monitor - no damage, static, tearing, sensor tint or seams there (soft 1 cm edge on the far rim) ----
+      float eyeView = 0.0;
+      if (uHatch.w > 0.5 && cd.z < -1e-4) {
+        float tF = (-uHatch.x - uEye.z) / cd.z;
+        vec2 pF = uEye.xy + tF * cd.xy - uHatchC;
+        vec2 q = abs(pF) - uHatch.yz;
+        eyeView = 1.0 - smoothstep(-0.01, 0.0, max(q.x, q.y));
+      }
+      if (eyeView > 0.999) { gl_FragColor = vec4(texture2D(tMap, vUv).rgb, 1.0);
+#include <colorspace_fragment>
+        return; }
 
       // ---- damaged-sector amount, FEATHERED across the sector edges and wobbling (CR-002b: no hard straight seams) ----
       float wob = (vnoise(vec2(lat * 5.0 + t * 0.6, 3.1)) - 0.5) * 0.34 + 0.04 * sin(lat * 21.0 + t * 1.1);
@@ -806,6 +822,7 @@ export const monitor = {
       // ---- 0.2 s black flicker on hit ----
       col *= 1.0 - uFlicker;
       col = max(col, vec3(0.0));
+      if (eyeView > 0.0) col = mix(col, texture2D(tMap, vUv).rgb, eyeView);   // the soft rim of the hatch view
       gl_FragColor = vec4(col, 1.0);
       #include <colorspace_fragment>
     }`,

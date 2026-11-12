@@ -358,9 +358,12 @@ export const GAWMAN = {
   contactRadius: 10,        // m from the player centre = the hull
   contactSpeed: 15,         // m/s: hull contact above this relative speed is fatal for him
   seaAlt: 30,               // m: below this he is lost
-  // tracking assist (hover form): inside assistFar the suit's no-thrust velocity becomes Gawman's velocity,
-  // full strength inside assistNear; thrust requests become relative to him and are scaled by relScale
-  assistFar: 260, assistNear: 140, relScale: 0.15,
+  // SPEED SYNC (owner: "automatic", "match speed only"): once he has jumped and the catch point is inside syncRange,
+  // a flight-form Xi drops to hover by itself (flight form cannot fly as slow as he falls), then the hover's no-thrust
+  // velocity becomes HIS velocity, ramping in over syncEngage s. It never steers: the pilot closes the gap, with thrust
+  // relative to him and a full stick worth at most max(syncMinRel, syncGain x gap) m/s - so holding the stick toward
+  // him slows the approach down by itself (300 m: 180 m/s, 30 m: 18, at the catch point 5) and he is never rammed.
+  syncRange: 1500, syncEngage: 0.8, syncRelease: 0.3, syncGain: 0.6, syncMinRel: 5,
   hintCooldown: 2.5,
 };
 

@@ -104,7 +104,8 @@ test('aboard: the full walk — talk on deck (Codex), the door, the corridor not
   walkTo(g, 0, 56, 0.4);
   assert.ok(S2(g).talk && S2(g).talk.id === 'iram', 'briefing starts');
   for (let i = 0; i < 200 && s.phase === 'aboard' && S2(g).stage !== 'end'; i++) g.press();
-  assert.ok(S2(g).codex.includes('gawman'));
+  assert.ok(S2(g).codex.includes('oenpeli'), 'the briefing sets up Chapter 3: Oenpeli');
+  assert.ok(S2(g).codex.includes('imitators'));
   assert.ok(S2(g).codex.includes('mafty'));
   g.step(60 * (A.endTime + 0.5));
   assert.equal(s.phase, 'victory');
@@ -129,4 +130,22 @@ test('aboard: the crew react to how Chapter 2 went', () => {
   const firstLine = (g) => { walkTo(g, -5.5, 33.8, 1.2); lookAt(g, -5.5, 36); g.press(); return g.state.story.talk && g.state.story.talk.lines[0].text; };
   assert.match(firstLine(clean), /Not one ping/);
   assert.match(firstLine(found), /found the ship/);
+});
+
+test('aboard: Gawman, home from Chapter 1, waits on deck near the pilot and talks about Lane Aim', () => {
+  const g = aboardGame();
+  const s = g.state;
+  toDeck(g);
+  const gw = S2(g).people.find((q) => q.id === 'gawman');
+  assert.ok(gw && gw.area === 'deck' && gw.look === 'gawman');
+  const w = S2(g).walk;
+  assert.ok(Math.hypot(gw.pos[0] - w.pos.x, gw.pos[2] - w.pos.z) < 8, 'close to where the pilot arrives');
+  walkTo(g, gw.pos[0] + 1.6, gw.pos[2] - 1.2, 0.4);
+  lookAt(g, gw.pos[0], gw.pos[2]);
+  assert.ok(S2(g).prompt && S2(g).prompt.id === 'gawman', 'prompt to talk to Gawman');
+  g.press();
+  for (let i = 0; i < 8 && !S2(g).talk.choices.length; i++) g.press();
+  g.press();                                         // 'Why did Lane let you go?'
+  assert.ok(S2(g).codex.includes('lane'));
+  void s;
 });

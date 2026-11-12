@@ -45,6 +45,10 @@ export function createMonitorPass(renderer, state) {
     uTan: { value: new THREE.Vector2(1.7, 1) },
     uCamRot: { value: camRot },
     uPixAng: { value: 0.002 },
+    // the open hatch: sight lines that leave the cockpit through the tunnel's far opening see the plain world
+    uHatch: { value: new THREE.Vector4(0, 0.53, 0.95, 0) },   // far distance, half width, half height, on
+    uHatchC: { value: new THREE.Vector2() },                  // opening centre offset (wind shake)
+    uEye: { value: new THREE.Vector3() },                     // cockpit-space eye (rig.camPos)
   };
   const monitorMat = new THREE.ShaderMaterial({
     uniforms: MU,
@@ -257,6 +261,12 @@ export function createMonitorPass(renderer, state) {
 
     m4.makeRotationFromQuaternion(ctx.rig.camQuat);
     camRot.setFromMatrix4(m4);
+    const ha = ctx.hatch;
+    if (ha && ha.far > 0) {
+      MU.uHatch.value.set(ha.far, ha.farHW, ha.farHH, 1);
+      MU.uHatchC.value.set(num(ha.farX, 0), num(ha.farY, 0));
+      if (ctx.rig.camPos) MU.uEye.value.copy(ctx.rig.camPos);
+    } else MU.uHatch.value.w = 0;
     const th = Math.tan((ctx.rig.dispFov * Math.PI) / 360);
     MU.uTan.value.set(th * ctx.aspect, th);
     MU.uPixAng.value = (2 * th) / MU.uRes.value.y;
