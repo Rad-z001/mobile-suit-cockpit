@@ -745,6 +745,7 @@ export function createHud(state, cockpit, rig, hatchAnim) {
   function drawStory2(p) {
     const st = state.story;
     if (!st || st.chapter !== 2 || !st.seawrack || !isVec(p.position)) return;
+    if (state.phase === 'aboard') return;                // seated in the hold after the homecoming: the flight is over
     const pos = p.position, sw = st.seawrack, rd = st.radar || {}, L = st.landing || {};
     const onScreen = () => P.x >= 30 && P.x <= W - 30 && P.y >= 30 && P.y <= H - 30;
     ctx.lineJoin = 'miter';

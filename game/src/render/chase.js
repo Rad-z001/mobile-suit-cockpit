@@ -131,6 +131,11 @@ export function createChase({ state, world, entities, monitor, rig }) {
     tNow += dt;
     if (inp.viewToggle && state.phase !== 'startup' && state.phase !== 'boarding') want = !want;
     if (state.phase === 'startup' || state.phase === 'ejected' || state.phase === 'boarding') want = false;
+    // on foot aboard Seawrack (and seated in its hold) the suit is the 28 m one in hold two, drawn by render/aboard.js: no
+    // chase camera and no 56 m 'YOU' suit standing in the hold with its feet through the floor
+    // (the same for Chapter 3's rise out of the hold, until the suit is clear of the ship)
+    const inHold = state.phase === 'aboard' || !!(state.story && state.story.chapter === 3 && state.story.launch && !state.story.launch.out);
+    if (inHold) { want = false; kRaw = 0; }
     kRaw = clamp(kRaw + (want ? dt : -dt) / 0.4, 0, 1);
     const k = ease(kRaw);
     api.k = k; api.on = kRaw > 0; api.hidden = k > 0.5;

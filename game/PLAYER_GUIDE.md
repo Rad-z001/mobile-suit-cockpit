@@ -287,7 +287,11 @@ RETRY starts here, not in the airlock.
 
 ## Interlude — Aboard Seawrack
 
-You are on foot on the deck, beside the closed hold. Walk to Command: the door under the bridge, the corridor, the lift.
+1. **In the hold.** After the landing shot you are back in the cockpit, in the closed hold. The gantry comes out from
+   the forward bulkhead to the Xi's chest. When it is on, press **H** to open the hatch.
+2. **The gantry.** You step out onto the gantry in front of the Xi. Walk back along it (W) to the bulkhead door; it
+   takes you up the stair and out of the hold access house onto the deck.
+3. **To Command.** Walk the deck to the door under the bridge, then the corridor and the lift.
 
 | Action | Controls |
 |---|---|
@@ -317,7 +321,8 @@ escarpment and its gorges. The town itself is only ever seen from a distance; th
 
 1. **Hold two.** You start on foot inside Seawrack's closed hold. Walk the gantry (W) to the Xi's open chest hatch. The
    deck chief and Gawman are by the bulkhead door if you want a word.
-2. **Cold start in the hold.** Enter four times as usual. The last step opens the hold covers and the Xi rises out.
+2. **Cold start in the hold.** Enter four times as usual. After the last step the gantry pulls back to the bulkhead,
+   the hold covers open and the Xi rises out.
    A checkpoint is saved here: RETRY restarts just out of the hold.
 3. **To the coast.** Fly south-east to the COAST marker. A Circe patrol of three Gustav Karls comes out to meet you:
    shoot them down.

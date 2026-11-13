@@ -433,7 +433,13 @@ export const ABOARD = {
   liftTime: 2.2,            // s: the lift ride (black)
   endTime: 2.5,             // s: fade out after the briefing
   walk: 1.7, run: 4.2, eye: 1.7,
-  start: [6, 0, 16],        // where the pilot stands after the cut (beside the closed hold, facing the bridge)
+  // after the homecoming: seated in the Xi in the closed hold, the gantry comes out to the chest hatch, H opens it, the pilot
+  // steps onto the gantry, walks to the forward bulkhead door and comes up on deck through the hold access house
+  gantryDelay: 1.2,         // s in the cockpit before the gantry starts to move
+  gantryTime: 6,            // s for the gantry to extend (Chapter 3 retracts it in OENBILI.retractTime)
+  hatchWait: 0.9,           // s with the hatch open before the cut to the pilot on the gantry
+  holdDoor: 1.2,            // half width of the forward bulkhead door at the gantry's landing
+  start: [-10.4, 0, -30],   // where the pilot comes up on deck: out of the hold access house (hold), facing the bridge
   talkRange: 3.4, talkCos: 0.78,
   deck: { x: 22.4, z0: -34, z1: 44.4 },
   hold: [-14, -30, 2.4],    // the open access hatch into hold two: x, z, half size (blocked, look down into it)
@@ -452,7 +458,8 @@ export const ABOARD = {
 // town, +x east, -z north. Heights come from sim/terrain.js (flat sea until the land is loaded).
 export const OENBILI = {
   ship: [-24000, -30000], shipHeading: 2.35,   // Seawrack offshore to the north-west, sailing slowly south-west
-  openTime: 2.4,            // s: hold two's covers swing open
+  retractTime: 3.2,         // s: the launch begins with the gantry pulling back to the forward bulkhead
+  openTime: 2.4,            // s: hold two's covers swing open (after the gantry is back)
   riseDelay: 1.5,           // s into the launch before the Xi lifts
   riseSpeed: 26,            // m/s up out of the hold
   riseTo: 72,               // m above the cockpit's seat in the hold: clear of the deck, control handed over

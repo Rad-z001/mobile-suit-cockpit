@@ -256,7 +256,9 @@ export function createState() {
       // ---- Chapter 3 "Oenbili" (sim/missions/oenbili.js writes; null before). chapter 3, stage 'hold' | 'board' (on foot,
       // aboard.js) | 'cockpit' (cold start in the hold) | 'launch' | 'transit' | 'intercept' | 'search' | 'approach' |
       // 'landed' (parked on the pad, the leader's talk in story.talk) | 'defend' | 'won'. ----
-      launch: null,         // { t, open 0..1 (hold covers), rise (m up out of the hold), out (clear of the ship), closeT }
+      launch: null,         // { t, retract 0..1 (the gantry pulls back first), open 0..1 (hold covers), rise (m up out of
+                            //   the hold), out (clear of the ship), closeT }
+      gantry: 0,            // hold two's gantry, 0..1 (see the interlude below)
       ob: null,             // { t, pad {x,y,z,r}, interceptIds, waveIds, allyIds (neutral gustav entities flown by the
                             //   mission, their beams are faction 'player'), signal 0..1, revealed, landing {progress, ready,
                             //   over, blocked}, waypoint {x, z, label, vague} | null, said, wonT }
@@ -266,8 +268,12 @@ export function createState() {
                             //   mission.rescue as in CR-004) | 'aboard' (hatch sealed) | 'duel' (she is hostile, wave 3) |
                             //   'lost', t (s in the stage), line (radio line shown), penelopeId }. Event 'laneDuel'.
       // ---- CR-014 interlude "Aboard Seawrack" (phase 'aboard', sim/missions/aboard.js writes; render/aboard.js reads) ----
-      // stage 'homecoming' (cine 0..1: hold two opens, the Xi hides inside, it closes) | 'deck' | 'corridor' | 'lift' |
-      //   'command' | 'end'. area 'deck' | 'corridor' | 'command'. fade 0..1 (black). walk { pos (ship model frame, eye),
+      // stage 'homecoming' (cine 0..1: hold two opens, the Xi hides inside, it closes) | 'gantry' (seated in the Xi in the
+      //   closed hold, cockpit view: the gantry extends to the chest, then H opens the hatch; player.hatch is stepped) |
+      //   'hold' (on foot on the gantry, to the forward bulkhead door) | 'deck' | 'corridor' | 'lift' | 'command' | 'end'.
+      //   gantry 0..1: hold two's gantry, 0 = retracted against the forward bulkhead, 1 = out to the Xi's chest hatch
+      //   (also Chapter 3: 1 on the walk and the cold start, retracting at the start of the launch).
+      //   area 'deck' | 'corridor' | 'command' | 'hold'. fade 0..1 (black). walk { pos (ship model frame, eye),
       //   vel, yaw (0 = toward the bow), pitch, step }; pilot (world) mirrors it. people [{ id, name, area, kind 'npc' |
       //   'sign', look, pos, yaw, talked }]. prompt null | { id, text }. talk null | { id, name, node, i, lines [{ who,
       //   text }], choices [{ text, ... }], sel }. codex [entry ids] (aboardScript.js CODEX), codexNew null | { id, t }.

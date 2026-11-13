@@ -518,7 +518,8 @@ export function createMix(kit) {
       const st = state.story || {}, ln = st.lane;
       const beat = ln && (ln.stage === 'arrive' || ln.stage === 'talk' || ln.stage === 'ready' || ln.stage === 'aboard');
       const ch3 = st.chapter === 3 && st.ob && !st.talk;
-      if (!markerOnly && (beat || ch3) && m.objective && hatchOpenK < 0.05) kit.T(String(m.objective).toUpperCase(), CX, UP(0, 0.64).y, rgba(WHITE, 0.82 * ga), 22, 'center');
+      const seated = state.phase === 'aboard';         // Chapter 2, in the hold after the homecoming: PRESS [H] — OPEN HATCH
+      if (!markerOnly && (beat || ch3 || seated) && m.objective && hatchOpenK < 0.05) kit.T(String(m.objective).toUpperCase(), CX, UP(0, 0.64).y, rgba(WHITE, 0.82 * ga), 22, 'center');
       if (!markerOnly && ch3) drawWaypoint3(st.ob, projEnt, ga, hooks, st.stage);
       return;
     }

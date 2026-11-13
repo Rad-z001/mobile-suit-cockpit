@@ -90,6 +90,26 @@ test('ch3: cold start in the hold, then the covers open and the Xi rises out; a 
   assert.ok(st(g).launch.open < 0.05, 'the covers close behind it');
 });
 
+test('ch3: the launch begins with the gantry retracting; the covers open and the Xi rises only once it is back', () => {
+  const g = game('story3');
+  g.step(2);
+  assert.equal(st(g).gantry, 1, 'out to the Xi for the walk');
+  walkToXi(g);
+  assert.equal(st(g).gantry, 1, 'still out through the cold start');
+  coldStart(g);
+  assert.equal(st(g).stage, 'launch');
+  const sw = st(g).seawrack, y0 = g.state.player.position.y - sw.position.y;
+  let openEarly = 0, roseEarly = 0;
+  assert.ok(g.until(() => st(g).gantry <= 0, 60 * 6, (s) => {
+    if (s.story.launch.open > 0) openEarly++;
+    if (s.player.position.y - sw.position.y > y0 + 0.01) roseEarly++;
+  }), 'the gantry goes back');
+  assert.equal(openEarly, 0, 'covers shut while the gantry moves');
+  assert.equal(roseEarly, 0, 'the Xi waits for it');
+  assert.ok(g.until(() => st(g).launch.open > 0.5, 60 * 4), 'then the covers open');
+  assert.ok(g.until(() => st(g).stage === 'transit', 60 * 10), 'and up out of the hold');
+});
+
 test('ch3: RETRY from the checkpoint - patrol over the coast, the signal, the pad, the talk, the last wave with allies, victory', () => {
   const g = game('story3c', { v: 1, chapter: 3, hull: 0.9, parts: {}, funnel: 24, vulcan: 800, flares: 12, kills: 0 });
   g.step(2);

@@ -4,9 +4,12 @@
 //     floodlights, the hold access house with the rescued civilians, the door under the bridge
 //   - the people of aboardScript.js as stylised faceless figures that turn toward the pilot
 //   - the corridor (notices on the walls, the lift) and the Command room (consoles, the lit map table, windows onto the deck)
-//   - Chapter 3: hold two under its closed covers - the gantry from the forward bulkhead to the Xi's open chest hatch, the Xi
-//     standing in the hold; the hold set stays drawn (from the cockpit) through the cold start and the launch
-// It owns the world camera while the phase lasts (the homecoming shot, then first person), and draws a flat overlay: the
+//   - hold two under its closed covers - the telescoping gantry (story.gantry) from the forward bulkhead to the Xi's open
+//     chest hatch, the Xi standing in the hold. Chapter 2: the gantry extends while the pilot sits in the cockpit ('gantry'
+//     stage), then the walk back to the bulkhead door. Chapter 3: the walk to the Xi; the hold set stays drawn (from the
+//     cockpit) through the cold start and the launch, when the gantry retracts.
+// It owns the world camera while the phase lasts (the homecoming shot, then first person; not in Chapter 2's seated
+// 'gantry' stage, where the cockpit is drawn as usual and this module adds only the hold set and a fade), and draws a flat overlay: the
 // letterbox and skip hint, objective, radio line, talk prompt, the dialogue panel with its choices, Codex toasts, fades.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -15,7 +18,7 @@ import { onXiReady, makeXiSuit } from './xiSuit.js';
 import { XI_MODEL_HEIGHT } from '../state.js';
 import { SEAWRACK as C, ABOARD as A } from '../sim/tuning.js';
 import { CODEX } from '../sim/missions/aboardScript.js';
-import { XI_HOLD, CATWALK, SUIT_COCKPIT, floorY } from '../sim/missions/aboard.js';
+import { XI_HOLD, HOLD2, CATWALK, SUIT_COCKPIT, floorY } from '../sim/missions/aboard.js';
 import { num, isVec, saturate } from './util.js';
 import { createPeopleKit } from './people.js';
 
@@ -73,6 +76,8 @@ export function createAboard({ state, world, monitor, seawrack }) {
   root.visible = false;
   world.scene.add(root);
   const deckG = new THREE.Group(), corridorG = new THREE.Group(), commandG = new THREE.Group(), holdG = new THREE.Group();
+  const lidG = new THREE.Group();          // what stands on hold two's covers: not drawn while they are open
+  deckG.add(lidG);
   root.add(deckG, corridorG, commandG, holdG);
 
   // ---- the Xi: in the homecoming shot it comes down out of the sky into hold two (CR-014b), facing the bow ---------------
@@ -90,23 +95,27 @@ export function createAboard({ state, world, monitor, seawrack }) {
     const zf = -C.bridgeZ - C.bridgeHalf;
     P.push(box(-1.9, D, zf - 0.35, -1.5, D + 2.8, zf, 0x4a5058), box(1.5, D, zf - 0.35, 1.9, D + 2.8, zf, 0x4a5058), box(-1.9, D + 2.6, zf - 0.35, 1.9, D + 3.0, zf, 0x4a5058));
     for (let i = 0; i < 8; i++) P.push(box(-1.5 + i * 0.375, D, zf - 0.4, -1.5 + (i + 1) * 0.375, D + 0.08, zf - 0.05, i % 2 ? 0x1d1d1d : 0xd9a636));
-    // floodlight posts along the landing hatch
+    // floodlight posts along the landing hatch (on the deck strips outboard of the coaming, clear of the covers)
     for (const [x, z] of [[-22, -20], [22, -20], [-22, 25], [22, 25]]) { P.push(box(x - 0.15, D, z - 0.15, x + 0.15, D + 7, z + 0.15, 0x6a727b)); P.push(box(x - 0.6, D + 6.6, z - 0.4, x + 0.6, D + 7.4, z + 0.4, 0x3b4047)); }
-    // crates and gas bottles near the bridge
-    for (let i = 0; i < 6; i++) { const x = 9 + (i % 3) * 2.3, z = 38 + Math.floor(i / 3) * 2.2; P.push(box(x - 1, D, z - 1, x + 1, D + 1.4 + hash(i, 2) * 0.6, z + 1, hash(i, 3) > 0.5 ? 0x7c6a4a : 0x5d6a52)); }
-    for (let i = 0; i < 5; i++) { const g = cylG(0.18, 1.4, i % 2 ? 0x2f6e9e : 0x9e2f2f, 8); g.translate(-14 + i * 0.45, D + 0.7, 40.5); P.push(g); }
-    // hold access house on the hatch lid: three walls and a roof, open toward the Xi (+X)
+    // crates and gas bottles on the deck between hold two's after coaming and the bridge
+    for (let i = 0; i < 6; i++) { const x = 6 + i * 2.2, z = 43.7; P.push(box(x - 1, D, z - 0.9, x + 1, D + 1.4 + hash(i, 2) * 0.6, z + 0.9, hash(i, 3) > 0.5 ? 0x7c6a4a : 0x5d6a52)); }
+    for (let i = 0; i < 5; i++) { const g = cylG(0.18, 1.4, i % 2 ? 0x2f6e9e : 0x9e2f2f, 8); g.translate(-14 + i * 0.45, D + 0.7, 43.6); P.push(g); }
+    deckG.add(lit(merge(P)));
+    P.length = 0;
+    // hold access house on the hatch lid: three walls and a roof, open toward the Xi (+X). It stands on hold two's port
+    // cover, so it is not drawn while the covers are open (lidG, hidden in the homecoming shot); its stair leads down to
+    // the forward bulkhead landing and the gantry
     const [hx, hz, hs] = A.hold, fl = floorY('deck', hx, hz);
     P.push(box(hx - hs, fl, hz - hs, hx - hs + 0.25, fl + 3, hz + hs, 0x6a727b), box(hx - hs, fl, hz - hs, hx + hs, fl + 3, hz - hs + 0.25, 0x6a727b), box(hx - hs, fl, hz + hs - 0.25, hx + hs, fl + 3, hz + hs, 0x6a727b));
     P.push(box(hx - hs - 0.2, fl + 3, hz - hs - 0.2, hx + hs + 0.2, fl + 3.3, hz + hs + 0.2, 0x575d66));
-    deckG.add(lit(merge(P)));
+    lidG.add(lit(merge(P)));
     // inside the hold house: warm light, a stair going down, people
     const I = [room(hx - hs + 0.26, fl, hz - hs + 0.26, hx + hs - 0.05, fl + 2.99, hz + hs - 0.26, 0x8a6a4a), box(hx - hs + 0.4, fl, hz - 1.0, hx - 0.4, fl + 0.05, hz + 1.0, 0x1a1410, false)];
     for (let i = 0; i < 5; i++) I.push(box(hx - hs + 0.6 + i * 0.35, fl - 0.1 - i * 0.3, hz - 0.9, hx - hs + 0.9 + i * 0.35, fl + 0.02 - i * 0.3, hz + 0.9, 0x3a3028));
-    deckG.add(unlit(merge(I)));
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), glowMat(0xffd28a)); lamp.position.set(hx, fl + 2.7, hz); deckG.add(lamp);
+    lidG.add(unlit(merge(I)));
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), glowMat(0xffd28a)); lamp.position.set(hx, fl + 2.7, hz); lidG.add(lamp);
     const civs = [['civ', hx + 0.9, hz - 1.4, 0.5, false, 1], ['civ2', hx + 1.4, hz + 0.9, -2.4, false, 1], ['civ3', hx - 0.9, hz + 1.5, 2.6, true, 1], ['civ2', hx + 0.3, hz - 0.5, 1.2, false, 0.62]];
-    for (const [look, x, z, ry, seated, sc] of civs) { const m = kit.person(look, { seated }); m.position.set(x, fl, z); m.rotation.y = ry; m.scale.setScalar(sc); deckG.add(m); }
+    for (const [look, x, z, ry, seated, sc] of civs) { const m = kit.person(look, { seated }); m.position.set(x, fl, z); m.rotation.y = ry; m.scale.setScalar(sc); lidG.add(m); }
   }
   // floodlight glows and light cones (switched on in the homecoming shot)
   const floods = [];
@@ -118,9 +127,10 @@ export function createAboard({ state, world, monitor, seawrack }) {
     deckG.add(head, cone);
     floods.push(head, cone);
   }
-  // ambient deck crew: four with signal wands around the Xi, two by the crane
+  // ambient deck crew: four with signal wands on the deck strips either side of hold two (outboard of the coaming, so they
+  // keep their footing while the covers swing open), two on the deck before the bridge
   const crew = [];
-  for (const [x, z, ry, wand] of [[-12, 4, 2.2, true], [12, 2, -2.0, true], [-9, -18, 0.6, true], [10, -16, -0.7, true], [-17, 12, 1.4, false], [16, 30, -2.7, false]]) {
+  for (const [x, z, ry, wand] of [[-22.6, 4, -1.6, true], [22.6, 2, 1.6, true], [-22.6, -12, -2.1, true], [22.6, -10, 2.1, true], [-6, 43.4, -0.2, false], [17.5, 43.2, 0.4, false]]) {
     const m = kit.person('deck'); m.position.set(x, floorY('deck', x, z), z); m.rotation.y = ry; deckG.add(m);
     const w = wand ? [-1, 1].map((s) => { const g = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.6, 6), glowMat(0xff8a2a)); g.frustumCulled = false; m.add(g); g.userData.s = s; return g; }) : [];
     crew.push({ m, w, ph: hash(x, z) * 6 });
@@ -265,51 +275,78 @@ export function createAboard({ state, world, monitor, seawrack }) {
   }
   for (const [x, z, ry] of [[-11, zr0 + 2.1, 0], [16.5, zr0 + 2.1, 0]]) { const m = kit.person('operator', { seated: true }); m.position.set(x, fy, z); m.rotation.y = ry; commandG.add(m); }
 
-  // ---- Chapter 3: hold two, the gantry to the Xi (baked colours: the covers are shut, only the work lamps light it) -------
+  // ---- hold two: the gantry from the forward bulkhead to the Xi's chest (Chapter 2 arrival, Chapter 3 launch) -----------
+  // A fixed landing at the bulkhead door, then a telescoping walkway of GSEG sections, each a little narrower and lower than
+  // the one before. story.gantry 0: the moving sections sit nested over the first; 1: out end to end to the chest hatch.
+  // Each section rolls on a pair of legs along two rails on the hold floor. Baked colours: the covers are shut, only the
+  // work lamps light it.
+  const GSEG = 3, gantrySegs = [];
+  const gLen = (CATWALK.z1 + 0.25 - (CATWALK.z0 + CATWALK.padLen)) / GSEG;
+  const hatchG = new THREE.Group();        // the lit open chest hatch on the standing Xi (on foot in the hold only)
+  holdG.add(hatchG);
   {
     const P = [], y = CATWALK.y, h = CATWALK.half, z0 = CATWALK.z0, z1 = CATWALK.z1, pad = CATWALK.pad, zp = z0 + CATWALK.padLen;
-    const GRATE = 0x5d646c, RAIL = 0xd9a636, STEEL = 0x4a5058, DARKS = 0x30353b;
+    const GRATE = 0x5d646c, RAIL = 0xd9a636, STEEL = 0x4a5058, DARKS = 0x30353b, F = HOLD2.floor, LEGX = h + 0.45;
     const bz = z0 - 1.2;                                                      // the forward bulkhead
+    const hw0 = h + 0.06 * (GSEG - 1);                                        // the first (widest) section's half width
+    // railings: posts every 2 m, top and middle rails, standing on deck height yb
+    const rail = (Q, yb, xa, za, xb, zb) => {
+      const L = Math.hypot(xb - xa, zb - za), n = Math.max(1, Math.round(L / 2));
+      for (let i = 0; i <= n; i++) { const t = i / n, x = xa + (xb - xa) * t, z = za + (zb - za) * t; Q.push(box(x - 0.04, yb, z - 0.04, x + 0.04, yb + 1.1, z + 0.04, RAIL)); }
+      const cx = (xa + xb) / 2, cz = (za + zb) / 2;
+      for (const yy of [1.08, 0.55]) { const g2 = flat(new THREE.BoxGeometry(0.06, 0.06, L)); g2.lookAt(new THREE.Vector3(xb - xa, 0, zb - za)); g2.translate(cx, yb + yy, cz); Q.push(paint(g2, RAIL)); }
+    };
     // bulkhead door: frame, dark doorway, hazard sill
     P.push(box(-1.6, y, bz - 0.1, -1.2, y + 2.6, bz + 0.25, STEEL, true), box(1.2, y, bz - 0.1, 1.6, y + 2.6, bz + 0.25, STEEL, true), box(-1.6, y + 2.4, bz - 0.1, 1.6, y + 2.8, bz + 0.25, STEEL, true));
     P.push(box(-1.2, y, bz - 0.12, 1.2, y + 2.4, bz - 0.02, 0x0b0d10));
     for (let i = 0; i < 6; i++) P.push(box(-1.2 + i * 0.4, y, bz + 0.25, -1.2 + (i + 1) * 0.4, y + 0.06, bz + 0.5, i % 2 ? 0x1d1d1d : RAIL));
-    // landing and walkway decks with a cross-grating pattern, toe boards
-    P.push(box(-pad, y - 0.18, bz + 0.25, pad, y, zp, GRATE, true), box(-h, y - 0.14, zp, h, y, z1 + 0.25, GRATE, true));
-    for (let z = bz + 0.6; z < z1; z += 0.5) { const w = z < zp ? pad : h; P.push(box(-w, y + 0.001, z - 0.02, w, y + 0.012, z + 0.02, DARKS)); }
-    for (const s2 of [-1, 1]) P.push(box(s2 * h - 0.04, y, zp, s2 * h + 0.04, y + 0.16, z1 + 0.25, RAIL));
-    // railings: posts every 2 m, top and middle rails (the pad's railing turns in to meet the walkway)
-    const rail = (xa, za, xb, zb) => {
-      const L = Math.hypot(xb - xa, zb - za), n = Math.max(1, Math.round(L / 2));
-      for (let i = 0; i <= n; i++) { const t = i / n, x = xa + (xb - xa) * t, z = za + (zb - za) * t; P.push(box(x - 0.04, y, z - 0.04, x + 0.04, y + 1.1, z + 0.04, RAIL)); }
-      const cx = (xa + xb) / 2, cz = (za + zb) / 2;
-      for (const yy of [1.08, 0.55]) { const g2 = flat(new THREE.BoxGeometry(0.06, 0.06, L)); g2.lookAt(new THREE.Vector3(xb - xa, 0, zb - za)); g2.translate(cx, y + yy, cz); P.push(paint(g2, RAIL)); }
-    };
-    for (const s2 of [-1, 1]) { rail(s2 * pad, bz + 0.3, s2 * pad, zp); rail(s2 * pad, zp, s2 * (h + 0.05), zp); rail(s2 * (h + 0.05), zp, s2 * (h + 0.05), z1 - 0.2); }
-    // supports: columns down to the hold floor every 8 m, cross beams under the deck
-    for (let z = zp + 2; z < z1 - 1; z += 8) for (const s2 of [-1, 1]) {
-      P.push(box(s2 * (h + 0.3) - 0.14, -8, z - 0.14, s2 * (h + 0.3) + 0.14, y - 0.14, z + 0.14, STEEL, true));
-      P.push(box(-h - 0.45, y - 0.42, z - 0.1, h + 0.45, y - 0.14, z + 0.1, STEEL, true));
-    }
-    // hazard chevrons at the end, where the walkway meets the Xi's chest
-    for (let i = 0; i < 6; i++) P.push(box(-h + i * (2 * h / 6), y + 0.012, z1 - 0.5, -h + (i + 1) * (2 * h / 6), y + 0.02, z1 + 0.2, i % 2 ? 0x1d1d1d : RAIL));
+    // the landing: grating deck, its railing turning in to meet the first section, two columns to the floor
+    P.push(box(-pad, y - 0.18, bz + 0.25, pad, y, zp, GRATE, true));
+    for (let z = bz + 0.6; z < zp; z += 0.5) P.push(box(-pad, y + 0.001, z - 0.02, pad, y + 0.012, z + 0.02, DARKS));
+    for (const s2 of [-1, 1]) { rail(P, y, s2 * pad, bz + 0.3, s2 * pad, zp); rail(P, y, s2 * pad, zp, s2 * (hw0 + 0.05), zp); }
+    for (const z of [bz + 1.2, zp - 0.6]) for (const s2 of [-1, 1]) P.push(box(s2 * (pad - 0.4) - 0.16, F, z - 0.16, s2 * (pad - 0.4) + 0.16, y - 0.18, z + 0.16, STEEL, true));
+    // the floor rails the sections roll on
+    for (const s2 of [-1, 1]) P.push(box(s2 * LEGX - 0.09, F, zp - 1.0, s2 * LEGX + 0.09, F + 0.12, z1 + 1.5, STEEL, true));
     // tool carts and a cable reel on the landing
     P.push(box(pad - 1.4, y, z0 + 0.4, pad - 0.4, y + 0.9, z0 + 1.2, 0x7c3030, true), box(-pad + 0.3, y, z0 + 2.0, -pad + 1.1, y + 0.7, z0 + 2.8, 0x2f4e7e, true));
     { const g2 = cylG(0.5, 0.4, 0x9a6a3d, 14); g2.rotateZ(Math.PI / 2); g2.translate(-pad + 0.8, y + 0.5, z0 + 0.8); P.push(g2); }
     holdG.add(unlit(merge(P)));
-    // lamps: amber on the railing posts, a white work lamp aimed at the chest, the lit open hatch on the Xi
-    for (let z = zp + 1; z < z1; z += 6) for (const s2 of [-1, 1]) {
-      const l = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.12), glowMat(0xffc860)); l.position.set(s2 * (h + 0.05), y + 1.2, z); holdG.add(l);
+    // the walkway sections (built extended; update() slides sections 1.. back over section 0)
+    for (let i = 0; i < GSEG; i++) {
+      const Q = [], hw = h + 0.06 * (GSEG - 1 - i), yt = y - 0.04 * i, za = zp + i * gLen, zb = zp + (i + 1) * gLen;
+      Q.push(box(-hw, yt - 0.14, za, hw, yt, zb, GRATE, true));
+      for (let z = za + 0.25; z < zb - 0.1; z += 0.5) Q.push(box(-hw, yt + 0.001, z - 0.02, hw, yt + 0.012, z + 0.02, DARKS));
+      for (const s2 of [-1, 1]) { Q.push(box(s2 * hw - 0.04, yt, za, s2 * hw + 0.04, yt + 0.16, zb, RAIL)); rail(Q, yt, s2 * (hw + 0.05), za + 0.1, s2 * (hw + 0.05), zb - 0.1); }
+      // legs at the far end (staggered so the nested sections' legs stand side by side), bogies on the floor rails
+      const zl = zb - 0.5 - 0.45 * i;
+      for (const s2 of [-1, 1]) {
+        Q.push(box(s2 * LEGX - 0.11, F + 0.3, zl - 0.11, s2 * LEGX + 0.11, yt - 0.14, zl + 0.11, STEEL, true));
+        Q.push(box(s2 * LEGX - 0.22, F + 0.12, zl - 0.38, s2 * LEGX + 0.22, F + 0.42, zl + 0.38, DARKS, true));
+      }
+      Q.push(box(-LEGX - 0.1, yt - 0.42, zl - 0.1, LEGX + 0.1, yt - 0.14, zl + 0.1, STEEL, true));
+      // hazard chevrons on the last section, where the walkway meets the Xi's chest
+      if (i === GSEG - 1) for (let k = 0; k < 6; k++) Q.push(box(-hw + k * (2 * hw / 6), yt + 0.012, z1 - 0.5, -hw + (k + 1) * (2 * hw / 6), yt + 0.02, z1 + 0.2, k % 2 ? 0x1d1d1d : RAIL));
+      const g2 = new THREE.Group();
+      g2.add(unlit(merge(Q)));
+      for (const s2 of [-1, 1]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.12), glowMat(0xffc860)); l.position.set(s2 * (hw + 0.05), yt + 1.2, (za + zb) / 2); g2.add(l); }
+      holdG.add(g2);
+      gantrySegs.push({ g: g2, i });
     }
+    // a white work lamp over the chest, its light pool on the walkway's end
     const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.3), glowMat(0xf4f8ff)); lamp.position.set(0, y + 4.5, z1 - 6); holdG.add(lamp);
     const pool = new THREE.Mesh(new THREE.CircleGeometry(2.2, 20), new THREE.MeshBasicMaterial({ color: 0xfff1d0, transparent: true, opacity: 0.12, depthWrite: false, blending: THREE.AdditiveBlending }));
     pool.rotation.x = -Math.PI / 2; pool.position.set(0, y + 0.03, z1 - 1.5); holdG.add(pool);
     // the open chest hatch: a lit opening in a dark frame, facing the gantry
-    const hz = z1 + 0.85, hy = SUIT_COCKPIT[1] + 0.1;
-    const frame = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 2.2), new THREE.MeshBasicMaterial({ color: 0x1a1d22 })); frame.position.set(0, hy, hz); frame.rotation.y = Math.PI; holdG.add(frame);
-    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.75), glowMat(0x9fd8ff)); inner.position.set(0, hy, hz - 0.02); inner.rotation.y = Math.PI; holdG.add(inner);
+    const hz = z1 + 0.25, hy = SUIT_COCKPIT[1] + 0.1;      // on the chest's front face, just past the walkway's end
+    const frame = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 2.2), new THREE.MeshBasicMaterial({ color: 0x1a1d22 })); frame.position.set(0, hy, hz); frame.rotation.y = Math.PI; hatchG.add(frame);
+    const inner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.75), glowMat(0x9fd8ff)); inner.position.set(0, hy, hz - 0.02); inner.rotation.y = Math.PI; hatchG.add(inner);
     const sign = plaque('HOLD 2', ['XI GUNDAM', '', 'GANTRY: ONE', 'PERSON AT A', 'TIME'], '#e8e2d0', 1.2, 1.4);
     sign.position.set(2.2, y + 1.9, bz + 0.3); holdG.add(sign);
+  }
+  // story.gantry 0..1: slide the sections out (section i travels i section lengths)
+  function setGantry(e) {
+    e = saturate(num(e, 0));
+    for (const s of gantrySegs) s.g.position.z = -s.i * gLen * (1 - e);
   }
 
   // ---- the story's people (aboardScript.js) ------------------------------------------------------------------------------
@@ -379,6 +416,11 @@ export function createAboard({ state, world, monitor, seawrack }) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, W, H);
     const st = state.story || {}, m = state.mission || {};
+    if (api.fadeOnly) {                                 // Chapter 2 seated in the hold: the cockpit HUD has the rest
+      const fade = num(st.fade, 0);
+      if (fade > 0) { g.fillStyle = col('0,0,0', fade); g.fillRect(0, 0, W, H); }
+      return;
+    }
     if (api.overlayOnly && !api.active) {              // Chapter 3 seated talk: the panel and the toast only
       if (st.talk) drawTalk(st.talk);
       if (st.codexNew && CODEX[st.codexNew.id]) {
@@ -389,7 +431,7 @@ export function createAboard({ state, world, monitor, seawrack }) {
       }
       return;
     }
-    if (st.stage === 'hold' && num(st.t, 0) < 7) {
+    if (st.stage === 'hold' && st.chapter === 3 && num(st.t, 0) < 7) {
       const a = saturate((num(st.t, 0) - 0.6) / 0.8) * saturate((7 - num(st.t, 0)) / 0.8);
       T('CHAPTER 3', W / 2, 150, AMB, a, 20, 'center', 500); T('OENBILI', W / 2, 196, CWH, a, 40, 'center', 500);
     }
@@ -430,7 +472,9 @@ export function createAboard({ state, world, monitor, seawrack }) {
 
   // ---- per frame ---------------------------------------------------------------------------------------------------------
   const eul = new THREE.Euler(0, 0, 0, 'YXZ'), m4 = new THREE.Matrix4(), UP = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3(), look = new THREE.Vector3();
-  const CAM0 = new THREE.Vector3(-140, 125, -170), CAM1 = new THREE.Vector3(-56, 92, -20);    // off the port bow, past the gantry crane: looks aft, down into the hold
+  // off the port bow, past the gantry crane: looks aft, down into the hold. CAM1 is steep enough to see over the raised port
+  // covers to the Xi standing on the hold floor.
+  const CAM0 = new THREE.Vector3(-140, 125, -170), CAM1 = new THREE.Vector3(-36, 104, -26);
   let overridden = false, tNow = 0, drawAcc = 1, hudCleared = true;
   const toWorld = (sw, p, out) => { const c = Math.cos(sw.heading), s = Math.sin(sw.heading); return out.set(sw.position.x + p.x * c - p.z * s, sw.position.y + p.y, sw.position.z + p.x * s + p.z * c); };
 
@@ -438,20 +482,27 @@ export function createAboard({ state, world, monitor, seawrack }) {
     const st = state.story || {};
     const on = state.phase === 'aboard' && st.seawrack && isVec(st.seawrack.position) && st.walk;
     tNow += dt;
-    api.active = !!on;
+    // Chapter 2 'gantry': seated in the Xi in the closed hold. The cockpit and its HUD are drawn as usual; this module
+    // adds the hold set around it (holdView) and the fade, and leaves the camera alone.
+    const seated = !!on && st.stage === 'gantry';
+    api.active = !!on && !seated;
+    api.fadeOnly = seated;
     // Chapter 3, seated on the rebels' pad: only the talk panel and the Codex toast over the cockpit (no camera change)
     api.overlayOnly = !on && st.chapter === 3 && state.phase === 'flight' && !!(st.talk || st.codexNew);
-    // Chapter 3: from the cockpit (cold start, then the launch until the Xi is out) the hold set stays drawn around it
-    const launch = st.launch || null;
-    const holdView = !on && st.chapter === 3 && st.seawrack && isVec(st.seawrack.position) &&
-      (state.phase === 'startup' || (launch && !launch.out));
+    // from the cockpit in hold two (Chapter 2's gantry stage; Chapter 3's cold start, then the launch until the Xi is out)
+    // the hold set stays drawn around it
+    const launch = st.chapter === 3 ? (st.launch || null) : null;
+    const holdView = seated || (!on && st.chapter === 3 && st.seawrack && isVec(st.seawrack.position) &&
+      (state.phase === 'startup' || (launch && !launch.out)));
     root.visible = !!on || !!holdView;
+    setGantry(st.gantry);
     if (holdView) {
       const sw = st.seawrack;
       root.position.set(sw.position.x, sw.position.y, sw.position.z);
       root.rotation.set(0, -sw.heading, 0);
       deckG.visible = corridorG.visible = commandG.visible = false;
       holdG.visible = true;
+      hatchG.visible = false;
       if (xi) xi.root.visible = false;                      // the pilot is inside it
       for (const [, P] of people) P.m.visible = false;
       if (seawrack && seawrack.setHold) seawrack.setHold(launch ? num(launch.open, 0) : 0);
@@ -472,9 +523,11 @@ export function createAboard({ state, world, monitor, seawrack }) {
     const stage = st.stage, area = st.area;
     const inHold = area === 'hold' || stage === 'board';
     deckG.visible = area === 'deck' || stage === 'homecoming';
+    lidG.visible = stage !== 'homecoming';                  // it stands on the covers, which open in the homecoming
     corridorG.visible = area === 'corridor' || stage === 'lift';
     commandG.visible = area === 'command' || stage === 'lift';
-    holdG.visible = inHold;
+    holdG.visible = inHold || stage === 'homecoming';       // the open hold shows the gantry stowed at the bulkhead
+    hatchG.visible = inHold;                                // on foot in the hold: the Xi stands with its hatch open
     // homecoming: the covers of hold two swing open, the Xi comes in over the stern, sinks into the hold, the covers close.
     // Afterwards the Xi stays hidden below and the covers stay shut.
     const cine = stage === 'homecoming' ? num(st.cine, 0) : 1;
@@ -502,7 +555,8 @@ export function createAboard({ state, world, monitor, seawrack }) {
     // the people turn toward the pilot when he is near (and always while talking to him)
     for (const [, P] of people) {
       const q = P.q, onFloor = floorY(q.area, q.pos[0], q.pos[2]);
-      P.m.visible = q.area === area || (q.area === 'deck' && deckG.visible);
+      // the deck people stand on hold two's covers: not in the homecoming shot, where those swing open
+      P.m.visible = (q.area === area || (q.area === 'deck' && deckG.visible)) && stage !== 'homecoming';
       P.m.position.set(q.pos[0], onFloor, q.pos[2]);
       const dx = st.walk.pos.x - q.pos[0], dz = st.walk.pos.z - q.pos[2];
       const near = (st.talk && st.talk.id === q.id) || (q.area === area && Math.hypot(dx, dz) < 6);
@@ -515,10 +569,10 @@ export function createAboard({ state, world, monitor, seawrack }) {
     // camera
     let fov = 74;
     if (stage === 'homecoming') {
-      const c = ease(num(st.cine, 0));
+      const c = ease(num(st.cine, 0) / 0.72);              // there by the time the Xi stands in the hold; holds for the covers
       v.lerpVectors(CAM0, CAM1, c);
       toWorld(sw, v, wc.position);
-      toWorld(sw, look.set(XI_HOLD.x, D + 6 + 34 * (1 - k), XI_HOLD.z + 20 * (1 - fly)), look);
+      toWorld(sw, look.set(XI_HOLD.x, D - 6 + 46 * (1 - k), XI_HOLD.z + 20 * (1 - fly)), look);
       m4.lookAt(wc.position, look, UP);
       wc.quaternion.setFromRotationMatrix(m4);
       fov = 46;
@@ -537,7 +591,7 @@ export function createAboard({ state, world, monitor, seawrack }) {
   }
 
   function render(renderer, dt) {
-    if (!api.active && !api.overlayOnly) { hudCleared = true; return; }
+    if (!api.active && !api.overlayOnly && !(api.fadeOnly && num((state.story || {}).fade, 0) > 0)) { hudCleared = true; return; }
     drawAcc += dt;
     if (hudCleared || drawAcc >= 1 / 30 || !(dt > 0)) { drawAcc = 0; hudCleared = false; drawOverlay(); tex.needsUpdate = true; }
     renderer.clearDepth();

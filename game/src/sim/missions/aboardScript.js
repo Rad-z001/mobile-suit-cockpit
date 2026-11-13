@@ -55,8 +55,9 @@ export const PEOPLE = [
     },
   },
   {
-    // he came home in the Xi's cockpit (Chapter 1): the first face on deck after the cut
-    id: 'gawman', name: 'GAWMAN NOBILE', area: 'deck', kind: 'npc', look: 'gawman', pos: [3.6, 0, 20.5], yaw: Math.PI * 0.8,
+    // he came home in the Xi's cockpit (Chapter 1): the first face on deck when the pilot comes up out of the hold access
+    // house (ABOARD.start)
+    id: 'gawman', name: 'GAWMAN NOBILE', area: 'deck', kind: 'npc', look: 'gawman', pos: [-6.6, 0, -26.6], yaw: -0.9,
     start: 'a',
     nodes: {
       a: {

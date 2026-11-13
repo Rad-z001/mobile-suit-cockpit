@@ -83,38 +83,45 @@ const hash = (a, b) => { const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.54
 
 // Ship hull: lofted through stations { z, w (half width at the deck edge), wb (half width of the lower hull), keel }.
 // Cross-section from the keel up: rounded bilge, red lower side, dark band, raised rubbing strake (light grey), dark upper
-// band, bulwark, then down its inner face to the deck, across the deck, and mirrored. Every triangle faces outward.
+// band, bulwark, then down its inner face to the deck at D, across the deck, and mirrored. Every triangle faces outward.
+export function hullSection(s, D) {
+  const { z, w, wb, keel } = s;
+  const raw = [[wb * 0.62, keel], [wb * 0.95, keel + 2.6], [wb + (w - wb) * 0.4, 3], [w, 11],
+    [w, 18.2], [w + 0.45, 18.5], [w + 0.45, 20.3], [w, 20.6], [w, D + 2.8], [w - 1.3, D + 2.8], [w - 1.3, D], [Math.min(HOLD.w + 0.8, w - 1.35), D]];
+  // the outer profile only climbs (near the bow the raised keel sits above the chine). The bulwark top, its inner face and
+  // the deck (the last three points) keep their heights: the deck is at D, not lifted onto the bulwark.
+  let lastY = keel;
+  const right = raw.map(([x, y], i) => { const yy = i < raw.length - 3 ? Math.max(y, lastY + 0.02 * (i + 1)) : y; lastY = yy; return new THREE.Vector3(x, yy, z); });
+  const left = right.slice().reverse().map((v) => new THREE.Vector3(-v.x, v.y, z));
+  return [new THREE.Vector3(0, keel, z), ...right, ...left];
+}
 function shipHull(stations, D, colorFn, skip = null) {
-  const sec = (s) => {
-    const { z, w, wb, keel } = s;
-    const raw = [[wb * 0.62, keel], [wb * 0.95, keel + 2.6], [wb + (w - wb) * 0.4, 3], [w, 11],
-      [w, 18.2], [w + 0.45, 18.5], [w + 0.45, 20.3], [w, 20.6], [w, D + 2.8], [w - 1.3, D + 2.8], [w - 1.3, D], [Math.min(HOLD.w + 0.8, w - 1.35), D]];
-    let lastY = keel;
-    const right = raw.map(([x, y], i) => { const yy = Math.max(y, lastY + 0.02 * (i + 1)); lastY = yy; return new THREE.Vector3(x, yy, z); });
-    const left = right.slice().reverse().map((v) => new THREE.Vector3(-v.x, v.y, z));
-    return [new THREE.Vector3(0, keel, z), ...right, ...left];
-  };
-  const R = stations.map(sec), pos = [];
-  const tri = (a, b, c, inside) => {
+  const R = stations.map((s) => hullSection(s, D)), pos = [];
+  const _o = new THREE.Vector3();
+  // wind (a, b, c) to face `out`
+  const tri = (a, b, c, out) => {
     _a.subVectors(b, a); _b.subVectors(c, a); _n.crossVectors(_a, _b);
-    _m.copy(a).add(b).add(c).multiplyScalar(1 / 3).sub(inside);
-    if (_n.dot(_m) < 0) { const t = b; b = c; c = t; }
+    if (_n.dot(out) < 0) { const t = b; b = c; c = t; }
     pos.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
   };
   for (let i = 0; i < R.length - 1; i++) {
     const A = R[i], B = R[i + 1], n = A.length;
-    const mid = new THREE.Vector3(0, (D + Math.min(stations[i].keel, stations[i + 1].keel)) / 2, (stations[i].z + stations[i + 1].z) / 2);
     for (let j = 0; j < n; j++) {
       const k = (j + 1) % n;
       // the open hold: no deck plating over it (the hatch lids and the hold pit are separate meshes)
       if (skip && skip((A[j].x + A[k].x + B[j].x + B[k].x) / 4, (A[j].y + A[k].y + B[j].y + B[k].y) / 4, (A[j].z + B[j].z) / 2)) continue;
-      tri(A[j], B[j], B[k], mid); tri(A[j], B[k], A[k], mid);
+      // each section is one counter-clockwise loop seen from +z (up the starboard side, across, down to port), so the
+      // edge j -> k faces (dy, -dx): right for the concave parts too (the bulwark's inner face looks onto the deck)
+      _o.set(A[k].y - A[j].y + B[k].y - B[j].y, -(A[k].x - A[j].x + B[k].x - B[j].x), 0);
+      if (_o.lengthSq() < 1e-10) continue;                 // a degenerate strip (coincident points)
+      tri(A[j], B[j], B[k], _o); tri(A[j], B[k], A[k], _o);
     }
   }
+  // bow and stern caps: the section is not convex (the bulwarks rise above the deck), so ear-clip it, not a fan
   for (const ri of [0, R.length - 1]) {
-    const r = R[ri], c = r.reduce((s, v) => s.add(v), new THREE.Vector3()).multiplyScalar(1 / r.length);
-    const inside = c.clone().add(new THREE.Vector3(0, 0, ri === 0 ? 1 : -1));
-    for (let j = 0; j < r.length; j++) tri(c, r[j], r[(j + 1) % r.length], inside);
+    const r = R[ri];
+    _o.set(0, 0, ri === 0 ? -1 : 1);
+    for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(r.map((v) => new THREE.Vector2(v.x, v.y)), [])) tri(r[a], r[b], r[c], _o);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -150,18 +157,21 @@ function buildSeawrack() {
     for (const [dz, k] of [[-0.35, 1], [-0.2, 0], [0.2, 0], [0.35, 1]]) st.push({ z: z + dz, w: B - (k ? 0 : 0.3), wb: B * 0.94 - (k ? 0 : 0.3), keel: -12 });
   }
   st.push({ z: L - 8, w: B, wb: B * 0.94, keel: -12 }, { z: L - 2, w: B * 0.97, wb: B * 0.86, keel: -10 }, { z: L, w: B * 0.95, wb: B * 0.8, keel: -8 });
+  // stations on hold two's ends, so the deck cut over it follows the opening exactly (no slots fore and aft of it)
+  for (const z of [HOLD.z0, HOLD.z1]) if (!st.some((q) => Math.abs(q.z - z) < 0.05)) st.push({ z, w: B, wb: B * 0.94, keel: -12 });
+  st.sort((a, b) => a.z - b.z);
   const rowOf = (z) => Math.floor((z + L) / 12.5);
   const nearSeam = (z) => SEAMS.some((s) => Math.abs(z - s) < 0.22);
   P.push(shipHull(st, D, (c, n) => {
-    if (n.y > 0.7 && c.y > D - 0.5) return rowOf(c.z) % 2 ? COL.deck : COL.deck2;                 // deck plating
-    if (Math.abs(n.x) < 0.5 && n.y > -0.3 && c.y > D) return COL.bulwark;                          // bulwark top / inner face
+    if (n.y > 0.7 && c.y > D - 0.5 && c.y < D + 0.5) return rowOf(c.z) % 2 ? COL.deck : COL.deck2;   // deck plating
+    if (c.y > D && Math.abs(c.x) < B - 0.6) return COL.bulwark;                                    // bulwark top / inner face
     if (nearSeam(c.z) && c.y > -1) return COL.seam;                                               // recessed panel seams
     const alt = (rowOf(c.z) + (c.y > 11 ? 1 : 0) + (c.x > 0 ? 1 : 0)) % 2;
     if (c.y < 11) return alt ? COL.red : COL.red2;
     if (c.y > 18.3 && c.y < 20.5) return COL.strake;
     if (c.y < 18.3) return alt ? COL.band : COL.band2;
     return alt ? COL.top : COL.top2;
-  }, (x, y, z) => Math.abs(y - D) < 0.05 && Math.abs(x) < HOLD.w + 0.7 && z > HOLD.z0 - 1 && z < HOLD.z1 + 1));
+  }, (x, y, z) => Math.abs(y - D) < 0.05 && Math.abs(x) < HOLD.w + 0.7 && z > HOLD.z0 && z < HOLD.z1));
   // bulbous bow
   { const g = flat(new THREE.SphereGeometry(1, 12, 8)); g.scale(4.2, 4.8, 15); g.translate(0, -5.5, -L + 5); P.push(paint(g, COL.redDeep)); }
   // hull detail on both sides: frame ribs on the dark band at every seam, recessed hatches / doors, a hazard-edged

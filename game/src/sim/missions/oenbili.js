@@ -2,7 +2,7 @@
 // checkpoint taken once the Xi is out of the hold). mission.id 'oenpeli', rt.waveState 'oenbili', story.chapter 3.
 //   'hold' / 'board'  on foot in hold two, the gantry to the Xi (sim/missions/aboard.js beginLaunchWalk)
 //   'cockpit'         the seated cold start in the closed hold (phase 'startup', sim/mission.js; syncHold keeps it aboard)
-//   'launch'          the covers open and the Xi rises out of the hold (scripted; phase 'flight')
+//   'launch'          the gantry retracts, the covers open and the Xi rises out of the hold (scripted; phase 'flight')
 //   'transit'         fly south-east to the coast (waypoint)
 //   'intercept'       a Circe patrol of Gustav Karls comes out over the coast: shoot them down
 //   'search'          follow the rebels' faint signal into the stone country (signal meter, no exact position)
@@ -78,26 +78,33 @@ function startFromCheckpoint(S, ck) {
   S.startup.stage = 4; S.startup.progress = 1;
   S.phase = 'flight';
   rt.prevVel.copy(p.velocity); rt.gSm.set(0, 1, 0); rt.gSlow.set(0, 1, 0);
-  st.launch = { t: 99, open: 0, rise: C.riseTo, out: true, closeT: 99 };
+  st.launch = { t: 99, retract: 1, open: 0, rise: C.riseTo, out: true, closeT: 99 };
+  st.gantry = 0;
   toTransit(S, true);
 }
 
-// the cold start's last stage: open the hold and go (called from sim/mission.js beginFlight)
+// the cold start's last stage: the gantry pulls back, the hold opens, go (called from sim/mission.js beginFlight)
 export function beginLaunch(S) {
   const st = S.story, p = S.player;
   st.stage = 'launch';
-  st.launch = { t: 0, open: 0, rise: 0, out: false, closeT: 0 };
+  st.launch = { t: 0, retract: 0, open: 0, rise: 0, out: false, closeT: 0, said: false };
+  st.gantry = 1;
   p.weaponsLocked = true;
   S.mission.objective = '';
   pushEvent(S, 'launch');
-  setMessage(S, 'SEAWRACK: Covers opening. Straight up, Xi — and come home with friends.', 6);
+  setMessage(S, 'DECK CHIEF: Gantry coming back. Covers next — hold her steady.', 4);
 }
 
 function stepLaunch(S, dt) {
   const rt = S.sim, p = S.player, st = S.story, sw = st.seawrack, L = st.launch;
   L.t += dt;
-  L.open = ease(L.t / C.openTime);
-  const up = L.t > C.riseDelay ? C.riseSpeed * ease((L.t - C.riseDelay) / 1.2) : 0;
+  // owner: the gantry visibly retracts to the forward bulkhead first; the covers open once it is back
+  L.retract = ease(L.t / C.retractTime);
+  st.gantry = 1 - L.retract;
+  const t = L.t - C.retractTime;
+  if (t >= 0 && !L.said) { L.said = true; setMessage(S, 'SEAWRACK: Covers opening. Straight up, Xi — and come home with friends.', 6); }
+  L.open = t > 0 ? ease(t / C.openTime) : 0;
+  const up = t > C.riseDelay ? C.riseSpeed * ease((t - C.riseDelay) / 1.2) : 0;
   L.rise = Math.min(C.riseTo, L.rise + up * dt);
   shipToWorld(sw, _a.set(0, SUIT_COCKPIT[1] + L.rise, SUIT_COCKPIT[2]), p.position);
   p.velocity.copy(sw.velocity).addScaledVector(_up, up);
